@@ -1,0 +1,11 @@
+[package]
+name = "duplicate"
+version = "0.1.0"
+authors = ["Emad"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro-error = "1.0.0"
