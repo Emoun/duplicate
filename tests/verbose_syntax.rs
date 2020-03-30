@@ -6,7 +6,7 @@ use duplicate::duplicate;
 	]
 )]
 #[test]
-fn dublicate_single(){
+fn duplicate_single(){
 	assert!(boolean);
 }
 

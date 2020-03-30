@@ -6,15 +6,64 @@ use std::collections::{HashMap, HashSet};
 #[proc_macro_error]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 {
-    let valid = validate_attr(attr);
-    if let Err(err) = valid {
-        abort!(err.0, err.1);
+    match identify_syntax(attr.clone()) {
+        Ok(syntax) => {
+            if syntax {
+                let valid = validate_verbose_attr(attr);
+                if let Err(err) = valid {
+                    abort!(err.0, err.1);
+                }
+                let result = substitute(item, valid.unwrap());
+                result
+            } else {
+                let valid = validate_short_attr(attr);
+                if let Err(err) = valid {
+                    abort!(err.0, err.1);
+                }
+                let mut reorder = Vec::new();
+                let substitutions = valid.unwrap();
+    
+                for _ in 0..substitutions[0].1.len() {
+                    reorder.push(HashMap::new());
+                }
+                
+                for (ident, subs) in substitutions {
+                    for (idx,sub) in subs.into_iter().enumerate() {
+                        reorder[idx].insert(ident.clone(), sub);
+                    }
+                }
+                
+                let result = substitute(item, reorder);
+                result
+            }
+        },
+        Err(err) => abort!(err.0, err.1),
     }
-    let result = substitute(item, valid.unwrap());
-    result
 }
 
-fn validate_attr(attr: TokenStream) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
+/// True is verbose, false is short
+fn identify_syntax(attr: TokenStream) -> Result<bool, (Span, String)>
+{
+    if let Some(token) = attr.into_iter().next() {
+        match token {
+            TokenTree::Group(group) => {
+                if Delimiter::None == group.delimiter() {
+                    Err((Span::call_site(),
+                         "Expected group in delimiters, got group without.".into()))
+                } else {
+                    Ok(true)
+                }
+            },
+            TokenTree::Ident(_) => Ok(false),
+            _ => Err((token.span(),
+                      "Expected substitution identifier or group. Received neither.".into()))
+        }
+    } else {
+        Err((Span::call_site(), "No substitutions found.".into()))
+    }
+}
+
+fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
 {
     if attr.is_empty() {
         return Err((Span::call_site(), "No substitutions found.".into()));
@@ -26,7 +75,7 @@ fn validate_attr(attr: TokenStream) -> Result<Vec<HashMap<String, TokenStream>>,
     let mut substitution_ids = None;
     loop {
         if let Some(tree) = iter.next() {
-            sub_groups.push(extract_substitutions(tree, &substitution_ids)?);
+            sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
             if None == substitution_ids {
                 substitution_ids = Some(sub_groups[0].keys().cloned().collect())
             }
@@ -35,12 +84,10 @@ fn validate_attr(attr: TokenStream) -> Result<Vec<HashMap<String, TokenStream>>,
         }
     }
     
-    
-    
     Ok(sub_groups)
 }
 
-fn extract_substitutions(tree: TokenTree, existing: &Option<HashSet<String>>) -> Result<HashMap<String, TokenStream>, (Span, String)>
+fn extract_verbose_substitutions(tree: TokenTree, existing: &Option<HashSet<String>>) -> Result<HashMap<String, TokenStream>, (Span, String)>
 {
     // Must get span now, before it's corrupted.
     let tree_span = tree.span();
@@ -106,6 +153,53 @@ fn extract_substitutions(tree: TokenTree, existing: &Option<HashSet<String>>) ->
     } else {
         Err(( tree_span, format!("Expected substitution group, got: {}", tree) ))
     }
+}
+
+fn validate_short_attr(attr: TokenStream) -> Result<Vec<(String, Vec<TokenStream>)>, (Span, String)>
+{
+    if attr.is_empty() {
+        return Err((Span::call_site(), "No substitutions found.".into()));
+    }
+    
+    let mut result: Vec<(String, Vec<TokenStream>)> = Vec::new();
+    let mut iter = attr.into_iter();
+    let mut next_token = iter.next();
+    loop {
+        if let Some(ident) = next_token {
+            next_token = iter.next();
+            if let TokenTree::Ident(ident) = ident {
+                let mut substitutions = Vec::new();
+                loop {
+                    if let Some(TokenTree::Group(group)) = next_token{
+                        next_token = iter.next();
+    
+                        if Delimiter::None == group.delimiter() {
+                            return Err((group.span(),
+                                 "Expected substitution in delimiters, got group without delimiters.".into()))
+                        }
+                        
+                        substitutions.push(group.stream());
+                    } else {
+                        break;
+                    }
+                }
+                if substitutions.len() == 0 {
+                    return Err((ident.span(), "Expected substitution identifier to be followed by at least one substitution.".into()))
+                }
+                if !result.is_empty() && (result[0].1.len() != substitutions.len()) {
+                    return Err((ident.span(), format!("Unexpected number of substitutions for identifier. Expected {}, was {}.", result[0].1.len(), substitutions.len())))
+                }
+                
+                result.push((ident.to_string(), substitutions));
+            } else {
+                return Err((ident.span(), "Expected substitution identifier.".into()))
+            }
+        } else {
+            break;
+        }
+    }
+    
+    Ok(result)
 }
 
 fn substitute(item: TokenStream, groups: Vec<HashMap<String, TokenStream>>) -> TokenStream{
