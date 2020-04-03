@@ -1,48 +1,56 @@
 use proc_macro::{TokenStream, TokenTree, Delimiter, Span, Group};
 use proc_macro_error::*;
 use std::collections::{HashMap, HashSet};
+use proc_macro_error::proc_macro::Spacing;
 
 #[proc_macro_attribute]
 #[proc_macro_error]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 {
-    match identify_syntax(attr.clone()) {
-        Ok(syntax) => {
-            if syntax {
-                let valid = validate_verbose_attr(attr);
-                if let Err(err) = valid {
-                    abort!(err.0, err.1);
-                }
-                let result = substitute(item, valid.unwrap());
-                result
-            } else {
-                let valid = validate_short_attr(attr);
-                if let Err(err) = valid {
-                    abort!(err.0, err.1);
-                }
-                let mut reorder = Vec::new();
-                let substitutions = valid.unwrap();
-    
-                for _ in 0..substitutions[0].1.len() {
-                    reorder.push(HashMap::new());
-                }
-                
-                for (ident, subs) in substitutions {
-                    for (idx,sub) in subs.into_iter().enumerate() {
-                        reorder[idx].insert(ident.clone(), sub);
-                    }
-                }
-                
-                let result = substitute(item, reorder);
-                result
-            }
-        },
+    match duplicate_impl(attr, item, false) {
+        Ok(result) => result,
         Err(err) => abort!(err.0, err.1),
     }
 }
 
+///
+/// Implements the macro.
+///
+/// `allow_short`: If true, accepts short syntax
+///
+fn duplicate_impl(attr: TokenStream, item: TokenStream, disallow_short: bool) ->Result<TokenStream, (Span, String)>
+{
+    let subs = parse_attr(attr, disallow_short)?;
+    let result = substitute(item, subs);
+    Ok(result)
+}
+
+fn parse_attr(attr: TokenStream, disallow_short: bool)
+    ->Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
+{
+    if identify_syntax(attr.clone(), disallow_short)? {
+        validate_verbose_attr(attr)
+    } else {
+        let valid = validate_short_attr(attr)?;
+        let mut reorder = Vec::new();
+        let substitutions = valid;
+        
+        for _ in 0..substitutions[0].1.len() {
+            reorder.push(HashMap::new());
+        }
+        
+        for (ident, subs) in substitutions {
+            for (idx,sub) in subs.into_iter().enumerate() {
+                reorder[idx].insert(ident.clone(), sub);
+            }
+        }
+        
+        Ok(reorder)
+    }
+}
+
 /// True is verbose, false is short
-fn identify_syntax(attr: TokenStream) -> Result<bool, (Span, String)>
+fn identify_syntax(attr: TokenStream, disallow_short: bool) -> Result<bool, (Span, String)>
 {
     if let Some(token) = attr.into_iter().next() {
         match token {
@@ -54,9 +62,14 @@ fn identify_syntax(attr: TokenStream) -> Result<bool, (Span, String)>
                     Ok(true)
                 }
             },
-            TokenTree::Ident(_) => Ok(false),
+            TokenTree::Ident(_) if !disallow_short => Ok(false),
+            TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone => {
+                Ok(true)
+            },
+            _ if disallow_short => Err((token.span(),
+                      "Expected substitution group (Short syntax is disallowed at this level). Received neither.".into())),
             _ => Err((token.span(),
-                      "Expected substitution identifier or group. Received neither.".into()))
+                        "Expected substitution identifier or group. Received neither.".into()))
         }
     } else {
         Err((Span::call_site(), "No substitutions found.".into()))
@@ -75,9 +88,45 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<HashMap<String, TokenS
     let mut substitution_ids = None;
     loop {
         if let Some(tree) = iter.next() {
-            sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
-            if None == substitution_ids {
-                substitution_ids = Some(sub_groups[0].keys().cloned().collect())
+            match tree {
+                TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone =>{
+                    if let Some(tree) = iter.next() {
+                        if let TokenTree::Group(group) = tree {
+                            if group.delimiter() == Delimiter::None {
+                                return Err((group.span(), "Expected group within delimiters. Got group without delimiters.".into()))
+                            }
+                            
+                            let nested_subs = parse_attr(group.stream(), false)?;
+                            
+                            if let Some(tree) = iter.next() {
+                                if let TokenTree::Group(group) = tree {
+                                    if group.delimiter() == Delimiter::None {
+                                        return Err((group.span(), "Expected group within delimiters. Got group without delimiters.".into()))
+                                    }
+                                    
+                                    let nested_duplicated = substitute(group.stream(), nested_subs);
+                                    let subs = validate_verbose_attr(nested_duplicated)?;
+                                    sub_groups.extend(subs.into_iter());
+                                } else {
+                                    return Err((group.span(), "Nested macro invocation must be followed by group to duplicate. Did not receive a group.".into()))
+                                }
+                            } else {
+                                return Err((group.span(), "Expected nested macro invocation to be followed by group to duplicate.".into()))
+                            }
+                            
+                        } else {
+                            return Err((tree.span(), "Expected nested macro invocation in group. Did not get a group.".into()))
+                        }
+                    } else {
+                        return Err((p.span(), "'#' must be followed by a nested macro invocation.".into()))
+                    }
+                },
+                _ => {
+                    sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
+                    if None == substitution_ids {
+                        substitution_ids = Some(sub_groups[0].keys().cloned().collect())
+                    }
+                }
             }
         } else {
             break;
