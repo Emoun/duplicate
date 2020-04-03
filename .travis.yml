@@ -1,0 +1,35 @@
+language: rust
+rust:
+  - 1.42.0
+  - stable
+  - beta
+  - nightly
+
+before_script:
+- cargo install cargo-expand
+- rustup toolchain install nightly
+- rustup component add rustfmt
+
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - cargo doc
+
+matrix:
+  include:
+    # An additional job specifically to check formatting
+    - rust: nightly-2020-03-22
+      before_script:
+      script:
+        - rustup component add --toolchain nightly-2020-03-22 rustfmt
+        - cargo +nightly-2020-03-22 fmt -- --check
+      env:
+    # Another formatting job using newest nightly, allowed to fail
+    - rust: nightly
+      before_script:
+      script:
+        - rustup component add rustfmt
+        - cargo +nightly -- --check
+  allow_failures:
+    - rust: nightly
+  
