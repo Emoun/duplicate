@@ -30,19 +30,18 @@ matrix:
     - cargo +nightly -- --check
   
   - stage : deploy
+    rust: stable
     before_script:
     script: skip
     before_deploy:
     - GIT_VERSION=$(git describe --tags)
-    - cat Cargo.toml
     - sed -i "s/version = \"0.0.0\"/version = \"$GIT_VERSION\"/" Cargo.toml
-    - cat Cargo.toml
-    # commit changes so cargo doesn't complain
-    - git config --global user.email "travis@travis-ci.org"
-    - git config --global user.name "Travis CI"
+    # commit changes so cargo doesn't complain about dirty repo
+    - git config user.email "travis@travis-ci.org"
+    - git config user.name "Travis CI"
     - git checkout -b travis_branch
     - git add Cargo.toml
-    - git commit -m "Commit version."
+    - git commit -m "Commit version $GIT_VERSION."
 
     deploy:
       provider: cargo
