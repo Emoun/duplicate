@@ -1,9 +1,9 @@
 language: rust
 rust:
-  - 1.42.0
-  - stable
-  - beta
-  - nightly
+- 1.42.0
+- stable
+- beta
+- nightly
 
 before_script:
 - cargo install cargo-expand
@@ -11,25 +11,34 @@ before_script:
 - rustup component add rustfmt
 
 script:
-  - cargo build --verbose
-  - cargo test --verbose
-  - cargo doc
+- cargo build --verbose
+- cargo test --verbose
+- cargo doc
 
 matrix:
   include:
-    # An additional job specifically to check formatting
-    - rust: nightly-2020-03-22
-      before_script:
-      script:
-        - rustup component add --toolchain nightly-2020-03-22 rustfmt
-        - cargo +nightly-2020-03-22 fmt -- --check
-      env:
-    # Another formatting job using newest nightly, allowed to fail
-    - rust: nightly
-      before_script:
-      script:
-        - rustup component add rustfmt
-        - cargo +nightly -- --check
-  allow_failures:
-    - rust: nightly
+  - rust: nightly-2020-03-22
+    before_script: 
+    script:
+    - rustup component add --toolchain nightly-2020-03-22 rustfmt
+    - cargo +nightly-2020-03-22 fmt -- --check
+
+  - rust: nightly
+    before_script: 
+    script:
+    - rustup component add rustfmt
+    - cargo +nightly -- --check
   
+  - stage : deploy
+    before_script:
+    script: skip
+
+    deploy:
+      provider: cargo
+      token:
+        secure: oqzw1/1lKTwAvhhToVYJT+YVO+n9ITS3bfuAyAYjstB3c4TKyN0sE6i7zl18VTJKLauwSyUiBrlRjcpAc49xzpHqnZcRArbQzeNFPeU8Unlfcegz7iHEBH4BSATlqAEUO0r2ijfnTRIf7nRViwmtWQHH/SAYiXRC8pguhuZAD27cupe0OaQ0F9HbhmnL9+F8wJMdZgqmQILCO8BXahomv6mU/mmMXDXtvWcVE8IBp2ezcJvMqLzSr7XEhBlZJCRSbV22JkJ6SncsjmPzgBz7R+tm3NrcRGCF83GKCNkV2CXkZMlcQPJ1zda+MauhlsVwv8ulKDjMsezvvkFrBnx8e2nnoV21cSpAMn9Byx/HC8FU2sq8o6MsOWcuf6fnNfoo0uKpRjDdok8tvZge3k7pTrYdz6ojZ77iwUfD56uVT9ayAfX3Demu5OAjd4TOrSkB/RVMF59odS1XAUv2HTvjkfbsrjn3U7CmD78fSGZZchh7iedzNOlEmIax9lycmmxyQwqx7FLvKkwNKBXtE3ZZIeG2S0RHsTbNwkPE7VnYbmKaqwmBRNAWYO7hgf23VbJXld91e1LSrQ6CRTGif+d4trXQDdITJxKRcuNlYzImxKgN3y7vGU5xBG36kfbYMWityJuza1kTQaZdT5gK24oAs1TqkcTjt6+rLRFAEroIuFg=
+      on:
+        tags: true
+    
+  allow_failures:
+  - rust: nightly

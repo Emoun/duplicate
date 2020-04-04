@@ -1,8 +1,13 @@
 [package]
 name = "duplicate"
-version = "0.1.0"
-authors = ["Emad"]
+version = "0.0.0"
+authors = ["Emad Jacob Maroun <emoun.open@gmail.com>"]
 edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "The attribute macro `duplicate` can duplicate an item with variable substitution."
+repository = "https://github.com/Emoun/tt-equal"
+documentation = "https://docs.rs/duplicate"
+readme = "README.md"
 
 [lib]
 proc-macro = true
@@ -12,3 +17,6 @@ proc-macro-error = "1.0.0"
 
 [dev-dependencies]
 macrotest = "0.1.6"
+
+[badges]
+maintenance = { status = "experimental" }
