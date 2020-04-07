@@ -1,4 +1,4 @@
-use proc_macro::{Delimiter, Group, Span, TokenStream, TokenTree};
+use proc_macro::{token_stream::IntoIter, Delimiter, Group, Span, TokenStream, TokenTree};
 use proc_macro_error::{proc_macro::Spacing, *};
 use std::collections::{HashMap, HashSet};
 
@@ -22,17 +22,18 @@ fn duplicate_impl(
 	disallow_short: bool,
 ) -> Result<TokenStream, (Span, String)>
 {
-	let subs = parse_attr(attr, disallow_short)?;
+	let subs = parse_attr(attr, Span::call_site(), disallow_short)?;
 	let result = substitute(item, subs);
 	Ok(result)
 }
 
 fn parse_attr(
 	attr: TokenStream,
+	stream_span: Span,
 	disallow_short: bool,
 ) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
 {
-	if identify_syntax(attr.clone(), disallow_short)?
+	if identify_syntax(attr.clone(), stream_span, disallow_short)?
 	{
 		validate_verbose_attr(attr)
 	}
@@ -60,7 +61,11 @@ fn parse_attr(
 }
 
 /// True is verbose, false is short
-fn identify_syntax(attr: TokenStream, disallow_short: bool) -> Result<bool, (Span, String)>
+fn identify_syntax(
+	attr: TokenStream,
+	stream_span: Span,
+	disallow_short: bool,
+) -> Result<bool, (Span, String)>
 {
 	if let Some(token) = attr.into_iter().next()
 	{
@@ -68,17 +73,8 @@ fn identify_syntax(attr: TokenStream, disallow_short: bool) -> Result<bool, (Spa
 		{
 			TokenTree::Group(group) =>
 			{
-				if Delimiter::None == group.delimiter()
-				{
-					Err((
-						Span::call_site(),
-						"Expected group in delimiters, got group without.".into(),
-					))
-				}
-				else
-				{
-					Ok(true)
-				}
+				check_delimiter(group)?;
+				Ok(true)
 			},
 			TokenTree::Ident(_) if !disallow_short => Ok(false),
 			TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone => Ok(true),
@@ -102,7 +98,7 @@ fn identify_syntax(attr: TokenStream, disallow_short: bool) -> Result<bool, (Spa
 	}
 	else
 	{
-		Err((Span::call_site(), "No substitutions found.".into()))
+		Err((stream_span, "No substitutions found.".into()))
 	}
 }
 
@@ -127,76 +123,18 @@ fn validate_verbose_attr(
 			{
 				TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
 				{
-					if let Some(tree) = iter.next()
-					{
-						if let TokenTree::Group(group) = tree
-						{
-							if group.delimiter() == Delimiter::None
-							{
-								return Err((
-									group.span(),
-									"Expected group within delimiters. Got group without \
-									 delimiters."
-										.into(),
-								));
-							}
+					let hints = "Hint: '#' is a nested invocation of the macro and must therefore \
+					             be followed by a group containing the \
+					             invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
+					             substitute2 ]\n][\n\tCode to be substituted whenever \
+					             'identifier' occurs \n]";
+					let nested_attr = parse_group(&mut iter, p.span(), hints)?;
+					let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span(), false)?;
 
-							let nested_subs = parse_attr(group.stream(), false)?;
-
-							if let Some(tree) = iter.next()
-							{
-								if let TokenTree::Group(group) = tree
-								{
-									if group.delimiter() == Delimiter::None
-									{
-										return Err((
-											group.span(),
-											"Expected group within delimiters. Got group without \
-											 delimiters."
-												.into(),
-										));
-									}
-
-									let nested_duplicated = substitute(group.stream(), nested_subs);
-									let subs = validate_verbose_attr(nested_duplicated)?;
-									sub_groups.extend(subs.into_iter());
-								}
-								else
-								{
-									return Err((
-										group.span(),
-										"Nested macro invocation must be followed by group to \
-										 duplicate. Did not receive a group."
-											.into(),
-									));
-								}
-							}
-							else
-							{
-								return Err((
-									group.span(),
-									"Expected nested macro invocation to be followed by group to \
-									 duplicate."
-										.into(),
-								));
-							}
-						}
-						else
-						{
-							return Err((
-								tree.span(),
-								"Expected nested macro invocation in group. Did not get a group."
-									.into(),
-							));
-						}
-					}
-					else
-					{
-						return Err((
-							p.span(),
-							"'#' must be followed by a nested macro invocation.".into(),
-						));
-					}
+					let nested_item = parse_group(&mut iter, nested_attr.span(), hints)?;
+					let nested_duplicated = substitute(nested_item.stream(), nested_subs);
+					let subs = validate_verbose_attr(nested_duplicated)?;
+					sub_groups.extend(subs.into_iter());
 				},
 				_ =>
 				{
@@ -224,112 +162,87 @@ fn extract_verbose_substitutions(
 {
 	// Must get span now, before it's corrupted.
 	let tree_span = tree.span();
-	if let TokenTree::Group(group) = tree
+	let group = check_group(
+		tree,
+		"Hint: When using verbose syntax, a substitutions must be enclosed in a \
+		 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ substitution2 \
+		 ]\n]",
+	)?;
+
+	if group.stream().into_iter().count() == 0
 	{
-		if Delimiter::None == group.delimiter()
-		{
-			panic!("Expected group in delimiters, got group without.");
-		}
+		return Err((group.span(), "No substitution groups found.".into()));
+	}
 
-		if group.stream().into_iter().count() == 0
-		{
-			return Err((tree_span, "No substitution groups found.".into()));
-		}
+	let mut substitutions = HashMap::new();
+	let mut stream = group.stream().into_iter();
 
-		let mut substitutions = HashMap::new();
-		let mut stream = group.stream().into_iter();
-
-		loop
+	loop
+	{
+		if let Some(ident) = stream.next()
 		{
-			if let Some(ident) = stream.next()
+			if let TokenTree::Ident(ident) = ident
 			{
-				let sub = stream.next().ok_or((
-					tree_span,
-					"Unexpected end of substitution group. Substitution identifier must be \
-					 followed by the substitute as a delimited group."
-						.into(),
-				))?;
+				let sub = parse_group(
+					&mut stream,
+					ident.span(),
+					"Hint: A substitution identifier should be followed by a group containing the \
+					 code to be inserted instead of any occurrence of the identifier.",
+				)?;
 
-				if let TokenTree::Ident(ident) = ident
+				let ident_string = ident.to_string();
+
+				// Check have found the same as existing
+				if let Some(idents) = existing
 				{
-					if let TokenTree::Group(sub) = sub
-					{
-						if Delimiter::None == sub.delimiter()
-						{
-							panic!(
-								"Expected substituion group using delimiters, got group without."
-							);
-						}
-
-						let ident_string = ident.to_string();
-
-						// Check have found the same as existing
-						if let Some(idents) = existing
-						{
-							if !idents.contains(&ident_string)
-							{
-								return Err((
-									ident.span(),
-									"Unfamiliar substitution identifier. '{}' is not present in \
-									 previous substitution groups."
-										.into(),
-								));
-							}
-						}
-						substitutions.insert(ident_string, sub.stream());
-					}
-					else
+					if !idents.contains(&ident_string)
 					{
 						return Err((
-							sub.span(),
-							format!("Expected substitution as a delimited group. E.g. [ .. ]."),
+							ident.span(),
+							"Unfamiliar substitution identifier. '{}' is not present in previous \
+							 substitution groups."
+								.into(),
 						));
 					}
 				}
-				else
-				{
-					return Err((
-						ident.span(),
-						"Expected substitution identifier, got something else.".into(),
-					));
-				}
+				substitutions.insert(ident_string, sub.stream());
 			}
 			else
 			{
-				// Check no substitution idents are missing.
-				if let Some(idents) = existing
-				{
-					let sub_idents = substitutions.keys().cloned().collect();
-					let diff: Vec<_> = idents.difference(&sub_idents).collect();
-
-					if diff.len() > 0
-					{
-						let mut msg: String = "Missing substitutions. Previous substitutions \
-						                       groups had the following identifiers not present \
-						                       in this group: "
-							.into();
-						for ident in diff
-						{
-							msg.push_str("'");
-							msg.push_str(&ident.to_string());
-							msg.push_str("' ");
-						}
-
-						return Err((tree_span, msg));
-					}
-				}
-				break;
+				return Err((
+					ident.span(),
+					"Expected substitution identifier, got something else.".into(),
+				));
 			}
 		}
-		Ok(substitutions)
+		else
+		{
+			// Check no substitution idents are missing.
+			if let Some(idents) = existing
+			{
+				let sub_idents = substitutions.keys().cloned().collect();
+				let diff: Vec<_> = idents.difference(&sub_idents).collect();
+
+				if diff.len() > 0
+				{
+					let mut msg: String = "Missing substitutions. Previous substitutions groups \
+					                       had the following identifiers not present in this \
+					                       group: "
+						.into();
+					for ident in diff
+					{
+						msg.push_str("'");
+						msg.push_str(&ident.to_string());
+						msg.push_str("' ");
+					}
+
+					return Err((tree_span, msg));
+				}
+			}
+			break;
+		}
 	}
-	else
-	{
-		Err((
-			tree_span,
-			format!("Expected substitution group, got: {}", tree),
-		))
-	}
+	Ok(substitutions)
 }
 
 fn validate_short_attr(attr: TokenStream)
@@ -357,16 +270,7 @@ fn validate_short_attr(attr: TokenStream)
 					{
 						next_token = iter.next();
 
-						if Delimiter::None == group.delimiter()
-						{
-							return Err((
-								group.span(),
-								"Expected substitution in delimiters, got group without \
-								 delimiters."
-									.into(),
-							));
-						}
-
+						let group = check_delimiter(group)?;
 						substitutions.push(group.stream());
 					}
 					else
@@ -461,4 +365,47 @@ fn substitute_token_tree(
 		_ => result.extend(TokenStream::from(tree).into_iter()),
 	}
 	result
+}
+
+fn parse_group(iter: &mut IntoIter, parent_span: Span, hints: &str)
+	-> Result<Group, (Span, String)>
+{
+	if let Some(tree) = iter.next()
+	{
+		check_group(tree, hints)
+	}
+	else
+	{
+		return Err((
+			parent_span,
+			"Unexpected end of macro invocation. Expected '[', '{', or '('.\n".to_string() + hints,
+		));
+	}
+}
+
+fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
+{
+	if let TokenTree::Group(group) = tree
+	{
+		check_delimiter(group)
+	}
+	else
+	{
+		return Err((
+			tree.span(),
+			"Unexpected token. Expected '[', '{', or '('.\n".to_string() + hints,
+		));
+	}
+}
+
+fn check_delimiter(group: Group) -> Result<Group, (Span, String)>
+{
+	if group.delimiter() == Delimiter::None
+	{
+		return Err((
+			group.span(),
+			"Unexpected delimiter for group. Expected '[]','{}', or '()' but received non.".into(),
+		));
+	}
+	Ok(group)
 }

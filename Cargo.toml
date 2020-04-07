@@ -5,9 +5,11 @@ authors = ["Emad Jacob Maroun <emoun.open@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "The attribute macro `duplicate` can duplicate an item with variable substitution."
-repository = "https://github.com/Emoun/tt-equal"
+repository = "https://github.com/Emoun/duplicate"
 documentation = "https://docs.rs/duplicate"
 readme = "README.md"
+
+categories = ["development-tools"]
 
 [lib]
 proc-macro = true
