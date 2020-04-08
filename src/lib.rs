@@ -1,7 +1,570 @@
+//! This crate provides the `duplicate` attribute-style procedural macro for
+//! code duplication with substitution.
+//!
+//! # Usage
+//!
+//! Say you have a trait with a method `is_max` that should return `true` if the
+//! value of the object is the maximum allowed and `false` otherwise:
+//! ```
+//! trait IsMax {
+//!   fn is_max(&self) -> bool;
+//! }
+//! ```
+//! You would like to implement this trait for the three integer types `u8`,
+//! `u16`, and `u32`:
+//!
+//! ```
+//! # trait IsMax {fn is_max(&self) -> bool;}
+//! impl IsMax for u8 {
+//!   fn is_max(&self) -> bool {
+//!     *self == 255
+//!   }
+//! }
+//! impl IsMax for u16 {
+//!   fn is_max(&self) -> bool {
+//!     *self == 65_535
+//!   }
+//! }
+//! impl IsMax for u32 {
+//!   fn is_max(&self) -> bool {
+//!     *self == 4_294_967_295
+//!   }
+//! }
+//! ```
+//! This is a lot of repetition. Only the type and the maximum value are
+//! actually different between the three implementations. This might not be much
+//! in our case, but imagine doing this for all the integer types (10, as of the
+//! last count.) We can use the `duplicate` attribute to avoid repeating
+//! ourselves:
+//!
+//! ```
+//! # trait IsMax {fn is_max(&self) -> bool;}
+//! use duplicate::duplicate;
+//! #[duplicate(
+//!   int_type  [ u8 ]  [ u16 ]    [ u32 ]
+//!   max_value [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+//! )]
+//! impl IsMax for int_type {
+//!   fn is_max(&self) -> bool {
+//!     *self == max_value
+//!   }
+//! }
+//!
+//! assert!(!42u8.is_max());
+//! assert!(!42u16.is_max());
+//! assert!(!42u32.is_max());
+//! ```
+//! The above code will expand to the three implementations before it.
+//! The attribute invocation specifies that the following item should be
+//! substituted by three duplicates of itself. Additionally, each occurrence of
+//! the identifier `int_type` in the first duplicate should be replaced by `u8`,
+//! in the second duplicate by `u16`, and in the last by `u32`. Likewise, each
+//! occurrence of `max_value` should be replaced by `255`, `65_535`, and
+//! `4_294_967_295` in the first, second, and third duplicates respectively.
+//!
+//! `int_type` and `max_value` are called _substitution identifiers_, while `[
+//! u8 ]`, `[ u16 ]`, and `[ u32 ]` are each _substitutions_ for `int_type`. The
+//! number of duplicates made is equal to the number of substitutions the
+//! substitution identifiers have---all identifiers must have the same number of
+//! substitutions. Substitution identifiers must be valid Rust identifiers.
+//!
+//! The code inside substitutions can be arbitrary, as long as the expanded code
+//! is valid. Additionally, any "bracket" type is valid; we could have used `()`
+//! or `{}` anywhere `[]` is used in these examples.
+//!
+//! ## Verbose Syntax
+//!
+//! The syntax used in the previous examples is the _short syntax_.
+//! `duplicate` also accepts a _verbose syntax_ that is less concise, but more
+//! powerful. Using the verbose syntax, the above usage looks like this:
+//! ```
+//! # trait IsMax {fn is_max(&self) -> bool;}
+//! use duplicate::duplicate;
+//! #[duplicate(
+//!   [
+//!     int_type  [ u8 ]
+//!     max_value [ 255 ]
+//!   ]
+//!   [
+//!     int_type  [ u16 ]
+//!     max_value [ 65_535 ]
+//!   ]
+//!   [
+//!     int_type  [ u32 ]
+//!     max_value [ 4_294_967_295 ]
+//!   ]
+//! )]
+//! impl IsMax for int_type {
+//!   fn is_max(&self) -> bool {
+//!     *self == max_value
+//!   }
+//! }
+//!
+//! # assert!(!42u8.is_max());
+//! # assert!(!42u16.is_max());
+//! # assert!(!42u32.is_max());
+//! ```
+//! The verbose syntax is centered around the _substitution group_, which then
+//! includes a set of identifier and substitution pairs. Here is an annotated
+//! version of the same code:
+//! ```
+//! # trait IsMax {fn is_max(&self) -> bool;}
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   [                               //-+
+//!     int_type  [ u8 ]              // | Substitution group 1
+//!     max_value [ 255 ]             // |
+//! //  ^^^^^^^^^ ^^^^^^^ substitution   |
+//! //  |                                |
+//! //  substitution identifier          |
+//!   ]                               //-+
+//!   [                               //-+
+//!     int_type  [ u16 ]             // | Substitution group 2
+//!     max_value [ 65_535 ]          // |
+//!   ]                               //-+
+//!   [                               //-+
+//!     max_value [ 4_294_967_295 ]   // | Substitution group 3
+//!     int_type  [ u32 ]             // |
+//!   ]                               //-+
+//! )]
+//! # impl IsMax for int_type {
+//! #  fn is_max(&self) -> bool {
+//! #     *self == max_value
+//! #    }
+//! #  }
+//! #
+//! # assert!(!42u8.is_max());
+//! # assert!(!42u16.is_max());
+//! # assert!(!42u32.is_max());
+//! ```
+//! Note that in each substitution group every identifier must have exactly one
+//! substitution. Any number of groups can be given with each translating to one
+//! duplicate. All the groups must have the exact same identifiers, though the
+//! order in which they arrive in each group is not important. For example, in
+//! the annotated example, the third group has the `max_value` identifier before
+//! `int_type` without having any effect on the expanded code.
+//!
+//! The short syntax's substitution grouping is based on the order of the
+//! substitutions for each identifier. We can annotate the short version of our
+//! example to highlight this:
+//! ```
+//! # trait IsMax {fn is_max(&self) -> bool;}
+//! # use duplicate::duplicate;
+//! #[duplicate(// vvvvvvv Group 1    vvvvvvvvvvvvvvvvv Group3
+//!   integer_type [ u8 ]  [ u16 ]    [ u32 ]
+//!   max_value    [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+//! )]//                   ^^^^^^^^^^ Group 2
+//! # impl IsMax for integer_type {
+//! #   fn is_max(&self) -> bool {
+//! #     *self == max_value
+//! #   }
+//! # }
+//! #
+//! # assert!(!42u8.is_max());
+//! # assert!(!42u16.is_max());
+//! # assert!(!42u32.is_max());
+//! ```
+//! The verbose syntax is not very concise but it has various advantages over
+//! the shorter syntax:
+//!
+//! * Individual substitution groups can be commented out easily for debugging
+//!   or other purposes.
+//! * Because it grows horizontally, the short syntax becomes unwieldy for large
+//!   numbers of
+//! duplicates, easily overflowing the 100 character line bound convension that
+//! the Rust community strives for. When this happens, either the
+//! substitutions must be aligned vertically, making it difficult to identify
+//! substitution groups, or it must be converted to the verbose
+//! to ensure line bounds are respected.
+//! * Along the same lines, if the contents of a substitution are long, the
+//!   short syntax again
+//! suffers the same problems.
+//! * And lastly, the verbose syntax offers something the short doesn't: nested
+//!   invocation.
+//!
+//! ### Nested Invocation
+//!
+//! Imagine we have the following trait with the method `is_negative` that
+//! should return `true` if the value of the object is negative and `false`
+//! otherwise:
+//! ```
+//! trait IsNegative {
+//!   fn is_negative(&self) -> bool;
+//! }
+//! ```
+//! We want to implement this for the six integer types `u8`, `u16`, `u32`,
+//! `i8`, `i16`, and `i32`. For the first three types, which are all unsigned,
+//! the implementation of this trait should trivially return `false` as can't be
+//! negative. However, for the remaining, signed types their implementation is
+//! identical (checking whether they are less than `0`), but, of course,
+//! different from the firs three:
+//! ```
+//! # trait IsNegative { fn is_negative(&self) -> bool;}
+//! impl IsNegative for u8 {
+//!   fn is_negative(&self) -> bool {
+//!     false
+//!   }
+//! }
+//! impl IsNegative for u16 {
+//!   fn is_negative(&self) -> bool {
+//!     false
+//!   }
+//! }
+//! impl IsNegative for u32 {
+//!   fn is_negative(&self) -> bool {
+//!     false
+//!   }
+//! }
+//! impl IsNegative for i8 {
+//!   fn is_negative(&self) -> bool {
+//!     *self < 0
+//!   }
+//! }
+//! impl IsNegative for i16 {
+//!   fn is_negative(&self) -> bool {
+//!     *self < 0
+//!   }
+//! }
+//! impl IsNegative for i32 {
+//!   fn is_negative(&self) -> bool {
+//!     *self <  0
+//!   }
+//! }
+//! # assert!(!42u8.is_negative());
+//! # assert!(!42u16.is_negative());
+//! # assert!(!42u32.is_negative());
+//! # assert!(!42i8.is_negative());
+//! # assert!(!42i16.is_negative());
+//! # assert!(!42i32.is_negative());
+//! ```
+//! Notice how the code repetition is split over 2 axes: 1) They all implement
+//! the same trait 2) the method implementations of the first 3 are identical to
+//! each other but different to the next 3, which are also mutually identical.
+//! To implement this using only the syntax we have already seen, we could do
+//! something like this:
+//! ```
+//! # trait IsNegative { fn is_negative(&self) -> bool;}
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   [
+//!     int_type [ u8 ]
+//!     implementation [ false ]
+//!   ]
+//!   [
+//!     int_type [ u16 ]
+//!     implementation [ false ]
+//!   ]
+//!   [
+//!     int_type [ u32 ]
+//!     implementation [ false ]
+//!   ]
+//!   [
+//!     int_type [ i8 ]
+//!     implementation [ *self < 0 ]
+//!   ]
+//!   [
+//!     int_type [ i16 ]
+//!     implementation [ *self < 0 ]
+//!   ]
+//!   [
+//!     int_type [ i32 ]
+//!     implementation [ *self < 0 ]
+//!   ]
+//! )]
+//! impl IsNegative for int_type {
+//!   fn is_negative(&self) -> bool {
+//!     implementation
+//!   }
+//! }
+//!
+//! assert!(!42u8.is_negative());
+//! assert!(!42u16.is_negative());
+//! assert!(!42u32.is_negative());
+//! assert!(!42i8.is_negative());
+//! assert!(!42i16.is_negative());
+//! assert!(!42i32.is_negative());
+//! ```
+//! However ironically, we there had to repeat ourselves in the macro invocation
+//! instead of the code: we needed to repeat the implementations `[ false ]` and
+//! `[ *self < 0 ]` three times each. Using verbose syntax we can utilize
+//! _nested invocation_ to remove the last bit of repetition:
+//!
+//! ```
+//! # trait IsNegative { fn is_negative(&self) -> bool;}
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   #[
+//!     int_type_nested [u8] [u16] [u32]
+//!   ][
+//!     [
+//!       int_type [ int_type_nested ]
+//!       implementation [ false ]
+//!     ]
+//!   ]
+//! 	  #[
+//!     int_type_nested [i8] [i16] [i32]
+//!   ][
+//!     [
+//!       int_type [ int_type_nested ]
+//!       implementation [ *self < 0 ]
+//!     ]
+//!   ]
+//! )]
+//! impl IsNegative for int_type {
+//!   fn is_negative(&self) -> bool {
+//!     implementation
+//!   }
+//! }
+//!
+//! assert!(!42u8.is_negative());
+//! assert!(!42u16.is_negative());
+//! assert!(!42u32.is_negative());
+//! assert!(!42i8.is_negative());
+//! assert!(!42i16.is_negative());
+//! assert!(!42i32.is_negative());
+//! ```
+//!
+//! We use `#` to invoke the macro inside itself, producing duplicates
+//! of the code inside the following `[]`, `{}`, or `()` for the outer
+//! invocation. We have 2 invocations that each produce 3 groups, inserting the
+//! correct `implementation` for their signed or unsigned types.
+//! The above nested invocation is equivalent to the previous, non-nested
+//! invocation, and actually expands to it as an intermediate step before
+//! expanding the outer-most invocation.
+//!
+//! An important thing to notice, is that the nested invocation doesn't know it
+//! isn't the outer-most invocation and therefore doesn't discriminate between
+//! identifiers. We had to use a different identifier in the nested invocations
+//! (`int_type_nested`) than in the code (`int_type`), because the nested
+//! invocation would substitute the substitution identifier, too, instead of
+//! only substituting in the nested invocation's substitute.
+//!
+//! Nested invocation is only possible when using verbose syntax.
+//! Additionally, the nested invocations must also produce verbose syntax.
+//! However, each nested invocation's private syntax is free to use the short
+//! one if it wants. Notice in our above example, the nested invocations used
+//! short syntax but produced verbose syntax for the outer-most invocation.
+//!
+//! There is no limit on the depth of nesting, however, as might be clear from
+//! our example, it can get complicated to read. Additionally, the syntax used
+//! in any invocation that includes a nested invocation must be verbose.
+//!
+//! Lastly, we should note that we can have nested invocations interleaved with
+//! normal substution groups. For example, say we want to implement `IsNegative`
+//! for `i8`, but don't want the same for `i16` and `i32`. We could do the
+//! following:
+//!
+//! ```
+//! # trait IsNegative { fn is_negative(&self) -> bool;}
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   #[                                  // -+
+//!     int_type_nested [u8] [u16] [u32]  //  |
+//!   ][                                  //  |
+//!     [                                 //  | Nested invocation producing 3
+//!       int_type [ int_type_nested ]    //  | substitution groups
+//!       implementation [ false ]        //  |
+//!     ]                                 //  |
+//!   ]                                   // -+
+//!   [                                   // -+
+//!     int_type [ i8 ]                   //  | Substitution group 4
+//!     implementation [ *self < 0 ]      //  |
+//!   ]                                   // -+
+//! )]
+//! impl IsNegative for int_type {
+//!   fn is_negative(&self) -> bool {
+//!     implementation
+//!   }
+//! }
+//!
+//! # assert!(!42u8.is_negative());
+//! # assert!(!42u16.is_negative());
+//! # assert!(!42u32.is_negative());
+//! # assert!(!42i8.is_negative());
+//! ```
+//!
+//! # Disclaimer
+//!
+//! This crate does not try to justify or condone the usage of code duplication
+//! instead of proper abstractions.
+//! This macro should only be used where it is not possible to reduce code
+//! duplication through other means, or where it simply is not worth it.
+//!
+//! As an example, libraries that have two or more structs/traits with similar
+//! APIs might use this macro to test them without having to copy-paste test
+//! cases and manually make the needed edits.
 use proc_macro::{token_stream::IntoIter, Delimiter, Group, Span, TokenStream, TokenTree};
-use proc_macro_error::{proc_macro::Spacing, *};
+use proc_macro_error::{
+	proc_macro::{Punct, Spacing},
+	*,
+};
 use std::collections::{HashMap, HashSet};
 
+/// Duplicates and substitutes given identifiers for different code in each
+/// duplicate.
+///
+/// _Substitution identifiers_ can be inserted into the code, which will be
+/// substituted with the different given code in each duplicate version of the
+/// original code.
+///
+/// # Short Syntax
+/// ```
+/// use duplicate::duplicate;
+/// trait IsMax {
+///   fn is_max(&self) -> bool;
+/// }
+///
+/// #[duplicate(
+///   int_type  [ u8 ]  [ u16 ]    [ u32 ]
+///   max_value [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+/// )]
+/// impl IsMax for int_type {
+///   fn is_max(&self) -> bool {
+///     *self == max_value
+///   }
+/// }
+///
+/// assert!(!42u8.is_max());
+/// assert!(!42u16.is_max());
+/// assert!(!42u32.is_max());
+/// ```
+/// The implementation of `IsMax` is duplicated 3 times:
+///
+/// 1. For the type `u8` and the its maximum value `255`.
+/// 2. For the type `u16` and the its maximum value `65_535 `.
+/// 3. For the type `u32` and the its maximum value `4_294_967_295 `.
+///
+/// This syntax must start with an identifier and then provice a set of
+/// substitutions for it. The substitutions must be enclosed in `[]`, `{}`, or
+/// `()`, but are otherwise free. Then another substituion identifier with the
+/// same number of substitutions as the previous identifier. Repeat as many as
+/// necessary.
+///
+/// # Verbose Syntax
+///
+/// ```
+/// use duplicate::duplicate;
+/// trait IsMax {
+///   fn is_max(&self) -> bool;
+/// }
+///
+/// #[duplicate(
+///   [
+///     int_type  [ u8 ]
+///     max_value [ 255 ]
+///   ]
+///   [
+///     int_type  [ u16 ]
+///     max_value [ 65_535 ]
+///   ]
+///   [
+///     max_value [ 4_294_967_295 ]
+///     int_type  [ u32 ]
+///   ]
+/// )]
+/// impl IsMax for int_type {
+///   fn is_max(&self) -> bool {
+///     *self == max_value
+///   }
+/// }
+///
+/// assert!(!42u8.is_max());
+/// assert!(!42u16.is_max());
+/// assert!(!42u32.is_max());
+/// ```
+/// Has the same functionality as the previous short-syntax example.
+///
+/// For each duplicate needed, a _substitution group_ must be given enclosed in
+/// `[]`, `{}`, or `()`. A substitution group is a set of identifiers and
+/// substitution pairs, like in the short syntax, but there can only be one
+/// substitution per identifier. All substitution groups must have the same
+/// identifiers, however their order is unimportant, as can be seen from the
+/// last substitution group above, where `max_value` comes before `int_type`.
+///
+/// # Nested Invocation
+/// ```
+/// use duplicate::duplicate;
+/// trait IsNegative {
+///   fn is_negative(&self) -> bool;
+/// }
+///
+/// #[duplicate(
+///   #[                                  // -+
+///     int_type_nested [u8] [u16] [u32]  //  |
+///   ][                                  //  |
+///     [                                 //  | Nested invocation producing 3
+///       int_type [ int_type_nested ]    //  | substitution groups
+///       implementation [ false ]        //  |
+///     ]                                 //  |
+///   ]                                   // -+
+///   [                                   // -+
+///     int_type [ i8 ]                   //  | Substitution group 4
+///     implementation [ *self < 0 ]      //  |
+///   ]                                   // -+
+/// )]
+/// impl IsNegative for int_type {
+///   fn is_negative(&self) -> bool {
+///     implementation
+///   }
+/// }
+///
+/// assert!(!42u8.is_negative());
+/// assert!(!42u16.is_negative());
+/// assert!(!42u32.is_negative());
+/// assert!(!42i8.is_negative());
+/// ```
+///
+/// This implements `IsNegative` 4 times:
+///
+/// 1. For the type `u8` with the implementation of the method simply returning
+/// `false`. 2. For the type `u16` the same way as `u8`.
+/// 3. For the type `u32` the same way as `u8` and `u16`.
+/// 4. For `i8` with the implementation of the method checking whether it's less
+/// than `0`.
+///
+/// We used `#` to start a _nested invocation_ of the macro. In it, we use the
+/// identifier `int_type_nested` to substitute the 3 unsigned integer types into
+/// the body of the nested invocation, which is a substitution group for the
+/// outer macro invocation. This therefore produces the three substitution
+/// groups that makes the outer macro make the duplicates for the unsigned
+/// integers.
+///
+/// This code is identical to the following, which doesn't use nested
+/// invocation:
+///
+/// ```
+/// # use duplicate::duplicate;
+/// # trait IsNegative {
+/// #   fn is_negative(&self) -> bool;
+/// # }
+/// #[duplicate(
+///   [
+///     int_type [ u8 ]
+///     implementation [ false ]
+///   ]
+///   [
+///     int_type [ u16 ]
+///     implementation [ false ]
+///   ]
+///   [
+///     int_type [ u32 ]
+///     implementation [ false ]
+///   ]
+///   [
+///     int_type [ i8 ]
+///     implementation [ *self < 0 ]
+///   ]
+/// )]
+/// impl IsNegative for int_type {
+///   fn is_negative(&self) -> bool {
+///     implementation
+///   }
+/// }
+/// # assert!(!42u8.is_negative());
+/// # assert!(!42u16.is_negative());
+/// # assert!(!42u32.is_negative());
+/// # assert!(!42i8.is_negative());
+/// ```
 #[proc_macro_attribute]
 #[proc_macro_error]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
@@ -77,7 +640,7 @@ fn identify_syntax(
 				Ok(true)
 			},
 			TokenTree::Ident(_) if !disallow_short => Ok(false),
-			TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone => Ok(true),
+			TokenTree::Punct(p) if is_nested_invocation(&p) => Ok(true),
 			_ if disallow_short =>
 			{
 				Err((
@@ -121,7 +684,7 @@ fn validate_verbose_attr(
 		{
 			match tree
 			{
-				TokenTree::Punct(p) if p.as_char() == '#' && p.spacing() == Spacing::Alone =>
+				TokenTree::Punct(p) if is_nested_invocation(&p) =>
 				{
 					let hints = "Hint: '#' is a nested invocation of the macro and must therefore \
 					             be followed by a group containing the \
@@ -153,6 +716,11 @@ fn validate_verbose_attr(
 	}
 
 	Ok(sub_groups)
+}
+
+fn is_nested_invocation(p: &Punct) -> bool
+{
+	p.as_char() == '#' && p.spacing() == Spacing::Alone
 }
 
 fn extract_verbose_substitutions(

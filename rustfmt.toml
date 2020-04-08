@@ -4,7 +4,6 @@ combine_control_expr=false
 control_brace_style="AlwaysNextLine"
 empty_item_single_line=true
 force_multiline_blocks=true
-format_code_in_doc_comments=true
 format_strings=true
 hard_tabs=true
 merge_imports=true
