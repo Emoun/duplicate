@@ -1,4 +1,4 @@
-//! This crate provides the `duplicate` attribute-style procedural macro for
+//! This crate provides the `duplicate` attribute macro for
 //! code duplication with substitution.
 //!
 //! # Usage
@@ -194,10 +194,10 @@
 //! ```
 //! We want to implement this for the six integer types `u8`, `u16`, `u32`,
 //! `i8`, `i16`, and `i32`. For the first three types, which are all unsigned,
-//! the implementation of this trait should trivially return `false` as can't be
-//! negative. However, for the remaining, signed types their implementation is
-//! identical (checking whether they are less than `0`), but, of course,
-//! different from the firs three:
+//! the implementation of this trait should trivially return `false` as they
+//! can't be negative. However, for the remaining, signed types their
+//! implementations is identical (checking whether they are less than `0`), but,
+//! of course, different from the first three:
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
 //! impl IsNegative for u8 {
@@ -284,7 +284,7 @@
 //! assert!(!42i16.is_negative());
 //! assert!(!42i32.is_negative());
 //! ```
-//! However ironically, we there had to repeat ourselves in the macro invocation
+//! However ironically, we here had to repeat ourselves in the macro invocation
 //! instead of the code: we needed to repeat the implementations `[ false ]` and
 //! `[ *self < 0 ]` three times each. Using verbose syntax we can utilize
 //! _nested invocation_ to remove the last bit of repetition:
@@ -301,7 +301,7 @@
 //!       implementation [ false ]
 //!     ]
 //!   ]
-//! 	  #[
+//!   #[
 //!     int_type_nested [i8] [i16] [i32]
 //!   ][
 //!     [
@@ -325,25 +325,26 @@
 //! ```
 //!
 //! We use `#` to invoke the macro inside itself, producing duplicates
-//! of the code inside the following `[]`, `{}`, or `()` for the outer
-//! invocation. We have 2 invocations that each produce 3 groups, inserting the
-//! correct `implementation` for their signed or unsigned types.
+//! of the code inside the following `[]`, `{}`, or `()`.
+//! In our example, we have 2 invocations that each produce 3 groups, inserting
+//! the correct `implementation` for their signed or unsigned types.
 //! The above nested invocation is equivalent to the previous, non-nested
 //! invocation, and actually expands to it as an intermediate step before
 //! expanding the outer-most invocation.
 //!
-//! An important thing to notice, is that the nested invocation doesn't know it
+//! It's important to notice that the nested invocation doesn't know it
 //! isn't the outer-most invocation and therefore doesn't discriminate between
 //! identifiers. We had to use a different identifier in the nested invocations
-//! (`int_type_nested`) than in the code (`int_type`), because the nested
-//! invocation would substitute the substitution identifier, too, instead of
-//! only substituting in the nested invocation's substitute.
+//! (`int_type_nested`) than in the code (`int_type`), because otherwise the
+//! nested invocation would substitute the substitution identifier, too, instead
+//! of only substituting in the nested invocation's substitute.
 //!
 //! Nested invocation is only possible when using verbose syntax.
-//! Additionally, the nested invocations must also produce verbose syntax.
-//! However, each nested invocation's private syntax is free to use the short
-//! one if it wants. Notice in our above example, the nested invocations used
-//! short syntax but produced verbose syntax for the outer-most invocation.
+//! Additionally, the nested invocations must produce verbose syntax of their
+//! parent invocation. However, each nested invocation's private syntax is free
+//! to use the short version. Notice in our above example, the nested
+//! invocations use short syntax but produce verbose syntax for the outer-most
+//! invocation.
 //!
 //! There is no limit on the depth of nesting, however, as might be clear from
 //! our example, it can get complicated to read. Additionally, the syntax used

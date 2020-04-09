@@ -7,7 +7,7 @@ license = "MIT OR Apache-2.0"
 description = "The attribute macro `duplicate` can duplicate an item with variable substitution."
 repository = "https://github.com/Emoun/duplicate"
 documentation = "https://docs.rs/duplicate"
-readme = "README.md"
+readme = "cargo-readme.md"
 
 categories = ["development-tools"]
 
