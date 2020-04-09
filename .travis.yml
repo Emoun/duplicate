@@ -17,17 +17,17 @@ script:
 
 matrix:
   include:
-  - rust: nightly-2020-03-22
+  - rust: nightly-2020-04-09
     before_script: 
     script:
-    - rustup component add --toolchain nightly-2020-03-22 rustfmt
-    - cargo +nightly-2020-03-22 fmt -- --check
+    - rustup component add --toolchain nightly-2020-04-09 rustfmt
+    - cargo +nightly-2020-04-09 fmt -- --check
 
   - rust: nightly
     before_script: 
     script:
     - rustup component add rustfmt
-    - cargo +nightly -- --check
+    - cargo +nightly fmt -- --check
   
   - stage : deploy
     rust: stable

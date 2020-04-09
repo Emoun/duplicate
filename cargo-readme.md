@@ -13,7 +13,7 @@ For an in-depth explanation of the syntax and features, [see the documentation](
 
 ### Example
 
-```
+```rust
 use duplicate::duplicate;
 
 /// Trait we want to implement for u8, u16, and u32
@@ -38,7 +38,7 @@ assert!(!42u32.is_max());
 ```
 Expands to:
 
-```
+```rust
 use duplicate::duplicate;
 
 /// Trait we want to implement for u8, u16, and u32

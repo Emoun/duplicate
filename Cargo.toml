@@ -11,6 +11,8 @@ readme = "cargo-readme.md"
 
 categories = ["development-tools"]
 
+exclude = [".travis.yml", "rustfmt.toml", ".gitignore"]
+
 [lib]
 proc-macro = true
 
