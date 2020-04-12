@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Crate readme format titles are now bigger than changelog entries.
+
 ## [0.1.4] - 2020-04-12
 
 ### Added

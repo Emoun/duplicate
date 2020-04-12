@@ -3,7 +3,7 @@ duplicate
 
 Attribute macro for code duplication with substitution.
 
-### Motivation
+## Motivation
 
 If you find yourself in need of copying a block of code and then making some small changes to fit the new use case, this crate is for you.
 
@@ -11,7 +11,7 @@ The `duplicate` attribute macro will duplicate an item any number of times while
 
 For an in-depth explanation of the syntax and features, [see the documentation](https://docs.rs/duplicate).
 
-### Example
+## Example
 
 ```rust
 use duplicate::duplicate;
@@ -68,7 +68,7 @@ assert!(!42u16.is_max());
 assert!(!42u32.is_max());
 ```
 
-### Changelog
+## Changelog
 
 #### License
 

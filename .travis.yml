@@ -46,7 +46,7 @@ matrix:
     - git add Cargo.toml
     # Insert changes to cargo readme
     - sed -n "/^## \[Unreleased]/,/^## \[[0-9]/p;/^## \[[0-9]/q" CHANGELOG.md | head -n -1 | tail -n +2 > CHANGES.txt
-    - sed -i "/### Changelog/r CHANGES.txt" cargo-readme.md
+    - sed -i "/## Changelog/r CHANGES.txt" cargo-readme.md
     - git add cargo-readme.md
     - rm CHANGES.txt
     # Commit changes so cargo doesn't complain about dirty repo
