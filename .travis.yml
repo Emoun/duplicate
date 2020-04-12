@@ -35,14 +35,35 @@ matrix:
     script: skip
     before_deploy:
     - GIT_VERSION=$(git describe --tags)
-    - sed -i "s/version = \"0.0.0\"/version = \"$GIT_VERSION\"/" Cargo.toml
-    # commit changes so cargo doesn't complain about dirty repo
+    # Ready git for use
     - git config user.email "travis@travis-ci.org"
     - git config user.name "Travis CI"
+    - git checkout -b master
+    # Use throw-away branch so we don't push the changes to origin
     - git checkout -b travis_branch
+    # Update cargo version, 
+    - sed -i "s/version = \"0.0.0\"/version = \"$GIT_VERSION\"/" Cargo.toml
     - git add Cargo.toml
-    - git commit -m "Commit version $GIT_VERSION."
-
+    # Insert changes to cargo readme
+    - sed -n "/^## \[Unreleased]/,/^## \[[0-9]/p;/^## \[[0-9]/q" CHANGELOG.md | head -n -1 | tail -n +2 > CHANGES.txt
+    - sed -i "/### Changelog/r CHANGES.txt" cargo-readme.md
+    - rm CHANGES.txt
+    # Commit changes so cargo doesn't complain about dirty repo
+    - git commit -m "Deploy changes."
+    
+    after_deploy:
+    - git checkout master
+    # Update changelog
+    - DATE=$(date +%Y-%m-%d)
+    - sed -i "s/## \[Unreleased]/## \[Unreleased]\n\n## \[$GIT_VERSION] - $DATE/" CHANGELOG.md
+    - git add CHANGELOG.md
+    - git commit -m "Reset CHANGELOG after v$GIT_VERSION."
+    # Push changes to repo
+    - cp git_private_key ~/.ssh/id_rsa
+    - chmod 400 ~/.ssh/id_rsa
+    - git remote add origin-ssh "git@github.com:Emoun/duplicate.git"
+    - git push origin-ssh master
+    
     deploy:
       provider: cargo
       token:
@@ -52,3 +73,13 @@ matrix:
     
   allow_failures:
   - rust: nightly
+
+before_install:
+# Decrypt git private key file. This command is provided by Travis.
+- openssl aes-256-cbc -K $encrypted_8cb7d1a48406_key -iv $encrypted_8cb7d1a48406_iv -in git_private_key.enc -out git_private_key -d
+
+
+
+
+
+

@@ -68,6 +68,8 @@ assert!(!42u16.is_max());
 assert!(!42u32.is_max());
 ```
 
+### Changelog
+
 #### License
 
 <sup>
