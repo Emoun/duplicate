@@ -70,6 +70,14 @@ assert!(!42u32.is_max());
 
 ## Changelog
 
+This project adheres to [Semantic Versioning.](https://semver.org/spec/v2.0.0.html)
+During initial development (with versions 0.y.z), bumps to the minor version (y) signify breaking changes.
+
+[changelog_body]
+
+This changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and shows only the changes since the previous version.
+[See the full changelog](https://github.com/Emoun/duplicate/blob/master/CHANGELOG.md) for changes to all released versions.
+
 #### License
 
 <sup>
