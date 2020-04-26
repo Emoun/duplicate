@@ -153,12 +153,12 @@
 //! # trait IsMax {fn is_max(&self) -> bool;}
 //! # use duplicate::duplicate;
 //! #[duplicate(
-//!   integer_type  max_value;
+//!   int_type  max_value;
 //!   [ u8 ]    [ 255 ];          // Group 1
 //!   [ u16 ]   [ 65_535 ];       // Group 2
 //!   [ u32 ]   [ 4_294_967_295 ];// Group 3
 //! )]
-//! # impl IsMax for integer_type {
+//! # impl IsMax for int_type {
 //! #   fn is_max(&self) -> bool {
 //! #     *self == max_value
 //! #   }
@@ -168,23 +168,14 @@
 //! # assert!(!42u16.is_max());
 //! # assert!(!42u32.is_max());
 //! ```
-//! The verbose syntax is not very concise but it has various advantages over
+//! The verbose syntax is not very concise but it some advantages over
 //! the shorter syntax:
 //!
-//! * Individual substitution groups can be commented out easily for debugging
-//!   or other purposes.
-//! * Because it grows horizontally, the short syntax becomes unwieldy for large
-//!   numbers of
-//! duplicates, easily overflowing the 100 character line bound convension that
-//! the Rust community strives for. When this happens, either the
-//! substitutions must be aligned vertically, making it difficult to identify
-//! substitution groups, or it must be converted to the verbose
-//! to ensure line bounds are respected.
-//! * Along the same lines, if the contents of a substitution are long, the
-//!   short syntax again
-//! suffers the same problems.
-//! * And lastly, the verbose syntax offers something the short doesn't: nested
-//!   invocation.
+//! - Using many identifiers and long substitutions can quickly become unwieldy
+//!   in the short
+//! syntax. The verbose syntax deals better with both as it will grow
+//! horizontally instead of vertically.
+//! - It offers something the short syntax doesn't: nested invocation.
 //!
 //! ### Nested Invocation
 //!
@@ -363,18 +354,18 @@
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
 //! # use duplicate::duplicate;
 //! #[duplicate(
-//!   #[                                  // -+
+//!   #[                                     // -+
 //!     int_type_nested; [u8]; [u16]; [u32]  //  |
-//!   ][                                  //  |
-//!     [                                 //  | Nested invocation producing 3
-//!       int_type [ int_type_nested ]    //  | substitution groups
-//!       implementation [ false ]        //  |
-//!     ]                                 //  |
-//!   ]                                   // -+
-//!   [                                   // -+
-//!     int_type [ i8 ]                   //  | Substitution group 4
-//!     implementation [ *self < 0 ]      //  |
-//!   ]                                   // -+
+//!   ][                                     //  |
+//!     [                                    //  | Nested invocation producing 3
+//!       int_type [ int_type_nested ]       //  | substitution groups
+//!       implementation [ false ]           //  |
+//!     ]                                    //  |
+//!   ]                                      // -+
+//!   [                                      // -+
+//!     int_type [ i8 ]                      //  | Substitution group 4
+//!     implementation [ *self < 0 ]         //  |
+//!   ]                                      // -+
 //! )]
 //! impl IsNegative for int_type {
 //!   fn is_negative(&self) -> bool {
@@ -408,9 +399,9 @@ use std::collections::{HashMap, HashSet};
 /// Duplicates and substitutes given identifiers for different code in each
 /// duplicate.
 ///
-/// _Substitution identifiers_ can be inserted into the code, which will be
-/// substituted with the different given code in each duplicate version of the
-/// original code.
+/// _Substitution identifiers_ can be inserted into the code. They will be
+/// substituted with the different substitution code in each duplicate version
+/// of the original code.
 ///
 /// # Short Syntax
 /// ```
@@ -441,11 +432,12 @@ use std::collections::{HashMap, HashSet};
 /// 2. For the type `u16` and the its maximum value `65_535 `.
 /// 3. For the type `u32` and the its maximum value `4_294_967_295 `.
 ///
-/// This syntax must start with an identifier and then provice a set of
-/// substitutions for it. The substitutions must be enclosed in `[]`, `{}`, or
-/// `()`, but are otherwise free. Then another substituion identifier with the
-/// same number of substitutions as the previous identifier. Repeat as many as
-/// necessary.
+/// This syntax must start with a list of all identifiers followed by `;`.
+/// Then a `;` seperated list of substitution groups must be given (at least 1
+/// group). Every group is a list of substitutions, one for each substitution
+/// identifier given in the first line.
+/// The substitutions must be enclosed in `[]`, `{}`, or `()`, but are otherwise
+/// free.
 ///
 /// # Verbose Syntax
 ///
@@ -725,16 +717,6 @@ fn validate_verbose_attr(
 	Ok(sub_groups)
 }
 
-fn punct_is_char(p: &Punct, c: char) -> bool
-{
-	p.as_char() == c && p.spacing() == Spacing::Alone
-}
-
-fn is_nested_invocation(p: &Punct) -> bool
-{
-	punct_is_char(p, '#')
-}
-
 fn extract_verbose_substitutions(
 	tree: TokenTree,
 	existing: &Option<HashSet<String>>,
@@ -852,7 +834,7 @@ fn validate_short_attr(attr: TokenStream)
 			span = token.span();
 			if let TokenTree::Punct(p) = token
 			{
-				if punct_is_char(&p, ';')
+				if is_semicolon(&p)
 				{
 					continue;
 				}
@@ -882,7 +864,7 @@ fn validate_short_get_identifiers(
 			match next_token
 			{
 				TokenTree::Ident(ident) => result.push((ident.to_string(), Vec::new())),
-				TokenTree::Punct(p) if punct_is_char(&p, ';') => break,
+				TokenTree::Punct(p) if is_semicolon(&p) => break,
 				_ => return Err((span, "Expected substitution identifier or ';'.".into())),
 			}
 		}
@@ -916,6 +898,7 @@ fn validate_short_get_substitutions<'a>(
 	Ok(span)
 }
 
+/// Duplicates the given token stream, substituting any identifiers found.
 fn substitute(item: TokenStream, groups: Vec<HashMap<String, TokenStream>>) -> TokenStream
 {
 	let mut result = TokenStream::new();
@@ -931,6 +914,8 @@ fn substitute(item: TokenStream, groups: Vec<HashMap<String, TokenStream>>) -> T
 	result
 }
 
+/// Recursively checks the given token for any use of the given substitution
+/// identifiers and substitutes them, returning the resulting token stream.
 fn substitute_token_tree(
 	tree: TokenTree,
 	subtitutions: &HashMap<String, TokenStream>,
@@ -967,6 +952,11 @@ fn substitute_token_tree(
 	result
 }
 
+/// Tries to parse a valid group from the given token stream iterator, returning
+/// the group if successfull.
+///
+/// If the next token is not a valid group, issues an error, that indicates to
+/// the given span and adding the given string to the end of the message.
 fn parse_group(iter: &mut IntoIter, parent_span: Span, hints: &str)
 	-> Result<Group, (Span, String)>
 {
@@ -983,6 +973,9 @@ fn parse_group(iter: &mut IntoIter, parent_span: Span, hints: &str)
 	}
 }
 
+/// Ensures the given token is a valid group and if so, returns it.
+///
+/// If not, issues an error, adding the given hints to the error message.
 fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
 {
 	if let TokenTree::Group(group) = tree
@@ -998,6 +991,9 @@ fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
 	}
 }
 
+/// Checks that the given group's delimiter is a bracket ('[]','{}', or '()').
+///
+/// If so, returns the same group, otherwise issues an error.
 fn check_delimiter(group: Group) -> Result<Group, (Span, String)>
 {
 	if group.delimiter() == Delimiter::None
@@ -1008,4 +1004,23 @@ fn check_delimiter(group: Group) -> Result<Group, (Span, String)>
 		));
 	}
 	Ok(group)
+}
+
+/// Checks whether the given punctuation is exactly equal to the given
+/// character.
+fn punct_is_char(p: &Punct, c: char) -> bool
+{
+	p.as_char() == c && p.spacing() == Spacing::Alone
+}
+
+/// Check whether teh given punctuation is ';'.
+fn is_semicolon(p: &Punct) -> bool
+{
+	punct_is_char(p, ';')
+}
+
+/// Checks whether the given punctuation is '#'.
+fn is_nested_invocation(p: &Punct) -> bool
+{
+	punct_is_char(p, '#')
 }
