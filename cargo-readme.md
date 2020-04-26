@@ -23,8 +23,10 @@ trait IsMax {
 }
 
 #[duplicate(
-  int_type  [ u8 ]  [ u16 ]    [ u32 ]
-  max_value [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+  int_type  max_value;
+  [ u8 ]    [ 255 ];
+  [ u16 ]   [ 65_535 ];
+  [ u32 ]   [ 4_294_967_295 ];
 )]
 impl IsMax for int_type {
   fn is_max(&self) -> bool {

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated crate readme to new short syntax.
+
 ## [0.2.0] - 2020-04-26
 
 ### Added
