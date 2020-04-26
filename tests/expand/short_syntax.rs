@@ -1,31 +1,36 @@
 use duplicate::duplicate;
 
 #[duplicate(
-	name	[SomeName]
+	name;
+	[SomeName];
 )]
 pub struct name();
 
 #[duplicate(
-	name	[SomeName]
-	member	[SomeMember]
+	name		member;
+	[SomeName]	[SomeMember]
 )]
 pub struct name(member);
 
 #[duplicate(
-	name	[SomeName]		[SomeName2]
-	member	[SomeMember]	[SomeMember2]
+	name		member;
+	[SomeName]	[SomeMember];
+	[SomeName2]	[SomeMember2];
 )]
 pub struct name(member);
 
 #[duplicate(
-	module [ mod1 ]  [ mod2 ]
+	module ;
+	[ mod1 ];
+	[ mod2 ]
 )]
 mod module {
 	use super::*;
 	
 	#[duplicate(
-		name	[SomeName]		[SomeName2]
-		member	[SomeMember]	[SomeMember2]
+		name		member;
+		[SomeName]	[SomeMember];
+		[SomeName2]	[SomeMember2];
 	)]
 	pub struct name(member);
 }

@@ -2,7 +2,7 @@ use duplicate::duplicate;
 
 #[duplicate(
 	#[
-		some_name	[SomeName1]	[SomeName2]
+		some_name;	[SomeName1];	[SomeName2]
 	][
 		[
 			name	[some_name]
@@ -17,7 +17,7 @@ pub struct name();
 // Test more than one nesting
 #[duplicate(
 	#[
-		some_name	[SomeName1]	[SomeName2]
+		some_name;	[SomeName1];	[SomeName2]
 	][
 		[
 			name	[some_name]
@@ -42,7 +42,7 @@ pub struct name();
 // Output should be the same as the next test.
 #[duplicate(
 	#[
-		some_name	[SomeName1]	[SomeName2]
+		some_name;	[SomeName1];	[SomeName2]
 	][
 		[
 			name	[some_name]
@@ -60,10 +60,10 @@ pub struct name(member);
 // Output should be the same as the previous test
 #[duplicate(
 	#[
-		some_name	[SomeName1]	[SomeName2]
+		some_name;	[SomeName1];	[SomeName2]
 	][
 		#[
-			some_member	[SomeMember1]	[SomeMember2]
+			some_member;	[SomeMember1];	[SomeMember2]
 		][
 			[
 				name	[some_name]

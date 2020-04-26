@@ -41,8 +41,10 @@
 //! # trait IsMax {fn is_max(&self) -> bool;}
 //! use duplicate::duplicate;
 //! #[duplicate(
-//!   int_type  [ u8 ]  [ u16 ]    [ u32 ]
-//!   max_value [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+//!   int_type  max_value;
+//!   [ u8 ]    [ 255 ];
+//!   [ u16 ]   [ 65_535 ];
+//!   [ u32 ]   [ 4_294_967_295 ];
 //! )]
 //! impl IsMax for int_type {
 //!   fn is_max(&self) -> bool {
@@ -150,10 +152,12 @@
 //! ```
 //! # trait IsMax {fn is_max(&self) -> bool;}
 //! # use duplicate::duplicate;
-//! #[duplicate(// vvvvvvv Group 1    vvvvvvvvvvvvvvvvv Group3
-//!   integer_type [ u8 ]  [ u16 ]    [ u32 ]
-//!   max_value    [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
-//! )]//                   ^^^^^^^^^^ Group 2
+//! #[duplicate(
+//!   integer_type  max_value;
+//!   [ u8 ]    [ 255 ];          // Group 1
+//!   [ u16 ]   [ 65_535 ];       // Group 2
+//!   [ u32 ]   [ 4_294_967_295 ];// Group 3
+//! )]
 //! # impl IsMax for integer_type {
 //! #   fn is_max(&self) -> bool {
 //! #     *self == max_value
@@ -294,7 +298,7 @@
 //! # use duplicate::duplicate;
 //! #[duplicate(
 //!   #[
-//!     int_type_nested [u8] [u16] [u32]
+//!     int_type_nested; [u8]; [u16]; [u32]
 //!   ][
 //!     [
 //!       int_type [ int_type_nested ]
@@ -302,7 +306,7 @@
 //!     ]
 //!   ]
 //!   #[
-//!     int_type_nested [i8] [i16] [i32]
+//!     int_type_nested; [i8]; [i16]; [i32]
 //!   ][
 //!     [
 //!       int_type [ int_type_nested ]
@@ -360,7 +364,7 @@
 //! # use duplicate::duplicate;
 //! #[duplicate(
 //!   #[                                  // -+
-//!     int_type_nested [u8] [u16] [u32]  //  |
+//!     int_type_nested; [u8]; [u16]; [u32]  //  |
 //!   ][                                  //  |
 //!     [                                 //  | Nested invocation producing 3
 //!       int_type [ int_type_nested ]    //  | substitution groups
@@ -416,8 +420,10 @@ use std::collections::{HashMap, HashSet};
 /// }
 ///
 /// #[duplicate(
-///   int_type  [ u8 ]  [ u16 ]    [ u32 ]
-///   max_value [ 255 ] [ 65_535 ] [ 4_294_967_295 ]
+///   int_type  max_value;
+///   [ u8 ]    [ 255 ];
+///   [ u16 ]   [ 65_535 ];
+///   [ u32 ]   [ 4_294_967_295 ];
 /// )]
 /// impl IsMax for int_type {
 ///   fn is_max(&self) -> bool {
@@ -491,7 +497,7 @@ use std::collections::{HashMap, HashSet};
 ///
 /// #[duplicate(
 ///   #[                                  // -+
-///     int_type_nested [u8] [u16] [u32]  //  |
+///     int_type_nested;[u8];[u16];[u32]  //  |
 ///   ][                                  //  |
 ///     [                                 //  | Nested invocation producing 3
 ///       int_type [ int_type_nested ]    //  | substitution groups
@@ -719,9 +725,14 @@ fn validate_verbose_attr(
 	Ok(sub_groups)
 }
 
+fn punct_is_char(p: &Punct, c: char) -> bool
+{
+	p.as_char() == c && p.spacing() == Spacing::Alone
+}
+
 fn is_nested_invocation(p: &Punct) -> bool
 {
-	p.as_char() == '#' && p.spacing() == Spacing::Alone
+	punct_is_char(p, '#')
 }
 
 fn extract_verbose_substitutions(
@@ -822,59 +833,31 @@ fn validate_short_attr(attr: TokenStream)
 		return Err((Span::call_site(), "No substitutions found.".into()));
 	}
 
-	let mut result: Vec<(String, Vec<TokenStream>)> = Vec::new();
 	let mut iter = attr.into_iter();
-	let mut next_token = iter.next();
+	let (mut result, mut span) = validate_short_get_identifiers(&mut iter, Span::call_site())?;
+
 	loop
 	{
-		if let Some(ident) = next_token
+		validate_short_get_substitutions(
+			&mut iter,
+			span,
+			result.iter_mut().map(|(_, vec)| {
+				vec.push(TokenStream::new());
+				vec.last_mut().unwrap()
+			}),
+		)?;
+
+		if let Some(token) = iter.next()
 		{
-			next_token = iter.next();
-			if let TokenTree::Ident(ident) = ident
+			span = token.span();
+			if let TokenTree::Punct(p) = token
 			{
-				let mut substitutions = Vec::new();
-				loop
+				if punct_is_char(&p, ';')
 				{
-					if let Some(TokenTree::Group(group)) = next_token
-					{
-						next_token = iter.next();
-
-						let group = check_delimiter(group)?;
-						substitutions.push(group.stream());
-					}
-					else
-					{
-						break;
-					}
+					continue;
 				}
-				if substitutions.len() == 0
-				{
-					return Err((
-						ident.span(),
-						"Expected substitution identifier to be followed by at least one \
-						 substitution."
-							.into(),
-					));
-				}
-				if !result.is_empty() && (result[0].1.len() != substitutions.len())
-				{
-					return Err((
-						ident.span(),
-						format!(
-							"Unexpected number of substitutions for identifier. Expected {}, was \
-							 {}.",
-							result[0].1.len(),
-							substitutions.len()
-						),
-					));
-				}
-
-				result.push((ident.to_string(), substitutions));
 			}
-			else
-			{
-				return Err((ident.span(), "Expected substitution identifier.".into()));
-			}
+			return Err((span, "Expected ';'.".into()));
 		}
 		else
 		{
@@ -883,6 +866,54 @@ fn validate_short_attr(attr: TokenStream)
 	}
 
 	Ok(result)
+}
+
+fn validate_short_get_identifiers(
+	iter: &mut IntoIter,
+	mut span: Span,
+) -> Result<(Vec<(String, Vec<TokenStream>)>, Span), (Span, String)>
+{
+	let mut result = Vec::new();
+	loop
+	{
+		if let Some(next_token) = iter.next()
+		{
+			span = next_token.span();
+			match next_token
+			{
+				TokenTree::Ident(ident) => result.push((ident.to_string(), Vec::new())),
+				TokenTree::Punct(p) if punct_is_char(&p, ';') => break,
+				_ => return Err((span, "Expected substitution identifier or ';'.".into())),
+			}
+		}
+		else
+		{
+			return Err((span, "Expected substitution identifier or ';'.".into()));
+		}
+	}
+	Ok((result, span))
+}
+
+fn validate_short_get_substitutions<'a>(
+	iter: &mut IntoIter,
+	mut span: Span,
+	mut groups: impl Iterator<Item = &'a mut TokenStream>,
+) -> Result<Span, (Span, String)>
+{
+	if let Some(token) = iter.next()
+	{
+		let group = check_group(token, "")?;
+		span = group.span();
+		*groups.next().unwrap() = group.stream();
+
+		for stream in groups
+		{
+			let group = parse_group(iter, span, "")?;
+			span = group.span();
+			*stream = group.stream();
+		}
+	}
+	Ok(span)
 }
 
 fn substitute(item: TokenStream, groups: Vec<HashMap<String, TokenStream>>) -> TokenStream

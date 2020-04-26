@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Crate readme changelog section now asserts the use of [Semantic Versioning.](https://semver.org/spec/v2.0.0.html) and [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+### Changed
+
+- New short syntax with row-based substitution groups instead of the old column-based syntax.
+See [github issue](https://github.com/Emoun/duplicate/issues/1).
+
 ## [0.1.5] - 2020-04-12
 
 ### Changed
