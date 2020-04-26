@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Crate readme license section no longer includes paragraph on the licensing of contibutions.
+
 ## [0.2.1] - 2020-04-26
 
 ### Changed
