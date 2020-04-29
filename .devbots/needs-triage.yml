@@ -1,0 +1,3 @@
+enabled: true
+label: "T-new"
+skip_when_has_labels: ["T-accepted", "T-rejected"]
