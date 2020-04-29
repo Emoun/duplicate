@@ -21,6 +21,7 @@ proc-macro-error = "1.0.0"
 
 [dev-dependencies]
 macrotest = "0.1.6"
+doc-comment = "0.3.3"
 
 [badges]
 maintenance = { status = "experimental" }

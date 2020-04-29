@@ -396,6 +396,9 @@ use proc_macro_error::{
 };
 use std::collections::{HashMap, HashSet};
 
+// Tests the crate readme file's Rust examples.
+mod crate_readme_test;
+
 /// Duplicates and substitutes given identifiers for different code in each
 /// duplicate.
 ///
