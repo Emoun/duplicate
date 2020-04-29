@@ -53,7 +53,7 @@ It must remain as `0.0.0` so Travis-CI can correctly change it for every release
 
 Travis will also reset the change log as part of the release, so do not change the `## [Unreleased]` line nor add an entry for new releases yourself.
 
-Travis will also add the new releases changes to `cargo-readme.md` under the `## Changelog` section. So do not touch that eihter.
+Travis will also add the new release's changes to `cargo-readme.md` under the `Changelog` section. So do not touch that either.
 
 #### License
 
