@@ -632,15 +632,11 @@ fn identify_syntax(
 	disallow_short: bool,
 ) -> Result<bool, (Span, String)>
 {
-	if let Some(token) = attr.into_iter().next()
+	if let Some(token) = next_token(&mut attr.into_iter(), "Could not identify syntax type.")?
 	{
 		match token
 		{
-			TokenTree::Group(group) =>
-			{
-				check_delimiter(group)?;
-				Ok(true)
-			},
+			TokenTree::Group(_) => Ok(true),
 			TokenTree::Ident(_) if !disallow_short => Ok(false),
 			TokenTree::Punct(p) if is_nested_invocation(&p) => Ok(true),
 			_ if disallow_short =>
@@ -682,7 +678,7 @@ fn validate_verbose_attr(
 	let mut substitution_ids = None;
 	loop
 	{
-		if let Some(tree) = iter.next()
+		if let Some(tree) = next_token(&mut iter, "Expected substitution group.")?
 		{
 			match tree
 			{
@@ -744,7 +740,7 @@ fn extract_verbose_substitutions(
 
 	loop
 	{
-		if let Some(ident) = stream.next()
+		if let Some(ident) = next_token(&mut stream, "Epected substitution identifier.")?
 		{
 			if let TokenTree::Ident(ident) = ident
 			{
@@ -861,7 +857,7 @@ fn validate_short_get_identifiers(
 	let mut result = Vec::new();
 	loop
 	{
-		if let Some(next_token) = iter.next()
+		if let Some(next_token) = next_token(iter, "Expected substitution identifier or ';'.")?
 		{
 			span = next_token.span();
 			match next_token
@@ -1026,4 +1022,32 @@ fn is_semicolon(p: &Punct) -> bool
 fn is_nested_invocation(p: &Punct) -> bool
 {
 	punct_is_char(p, '#')
+}
+
+/// Gets the next token tree from the iterator.
+///
+/// If the token is a group without delimiters, the token inside the groups is
+/// returned. If the group has more than one token, an error is returned.
+fn next_token(iter: &mut IntoIter, err_msg: &str) -> Result<Option<TokenTree>, (Span, String)>
+{
+	match iter.next()
+	{
+		Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::None =>
+		{
+			let mut in_group = group.stream().into_iter();
+			let result = in_group.next();
+			match in_group.next()
+			{
+				None => Ok(result),
+				// If ends with ';' and nothing else, was a statement including
+				// only 1 token, so allow.
+				Some(TokenTree::Punct(p)) if is_semicolon(&p) && in_group.next().is_none() =>
+				{
+					Ok(result)
+				},
+				_ => Err((group.span(), err_msg.into())),
+			}
+		},
+		token => Ok(token),
+	}
 }
