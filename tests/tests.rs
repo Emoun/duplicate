@@ -3,12 +3,13 @@ const TESTING_DIR: &'static str = "testing";
 #[test]
 pub fn pass()
 {
+	let _ = std::fs::remove_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR);
 	std::fs::create_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR).unwrap();
 	copy_from("from");
 	copy_from("expected");
 	copy_for_both_syntaxes();
 
-	macrotest::expand(EXPAND_DIR.to_owned() + "/" + TESTING_DIR + "/*.rs");
+	macrotest::expand_without_refresh(EXPAND_DIR.to_owned() + "/" + TESTING_DIR + "/*.rs");
 }
 
 fn copy_from(source_dir: &str)
