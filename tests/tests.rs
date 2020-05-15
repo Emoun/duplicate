@@ -6,7 +6,10 @@ pub fn pass()
 	let _ = std::fs::remove_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR);
 	std::fs::create_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR).unwrap();
 	copy_from("from");
-	copy_from("expected");
+	if std::path::Path::new(&(EXPAND_DIR.to_owned() + "/expected")).exists()
+	{
+		copy_from("expected");
+	}
 	copy_for_both_syntaxes();
 
 	macrotest::expand_without_refresh(EXPAND_DIR.to_owned() + "/" + TESTING_DIR + "/*.rs");

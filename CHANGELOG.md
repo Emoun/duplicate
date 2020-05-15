@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Short syntax now supports nested macro invocations. Can only be used after the initial list of substitution identifiers. See [#2](https://github.com/Emoun/duplicate/issues/2).
+
 ### Changed
 
 - Crate readme license section no longer includes paragraph on the licensing of contibutions.

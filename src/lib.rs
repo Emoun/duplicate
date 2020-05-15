@@ -571,7 +571,7 @@ mod crate_readme_test;
 #[proc_macro_error]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 {
-	match duplicate_impl(attr, item, false)
+	match duplicate_impl(attr, item)
 	{
 		Ok(result) => result,
 		Err(err) => abort!(err.0, err.1),
@@ -581,24 +581,21 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// Implements the macro.
 ///
 /// `allow_short`: If true, accepts short syntax
-fn duplicate_impl(
-	attr: TokenStream,
-	item: TokenStream,
-	disallow_short: bool,
-) -> Result<TokenStream, (Span, String)>
+fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (Span, String)>
 {
-	let subs = parse_attr(attr, Span::call_site(), disallow_short)?;
+	let subs = parse_attr(attr, Span::call_site())?;
 	let result = substitute(item, subs);
 	Ok(result)
 }
 
+/// Parses the attribute part of an invocation of duplicate, returning
+/// all the substitutions that should be made to the item.
 fn parse_attr(
 	attr: TokenStream,
 	stream_span: Span,
-	disallow_short: bool,
 ) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
 {
-	if identify_syntax(attr.clone(), stream_span, disallow_short)?
+	if identify_syntax(attr.clone(), stream_span)?
 	{
 		validate_verbose_attr(attr)
 	}
@@ -626,28 +623,15 @@ fn parse_attr(
 }
 
 /// True is verbose, false is short
-fn identify_syntax(
-	attr: TokenStream,
-	stream_span: Span,
-	disallow_short: bool,
-) -> Result<bool, (Span, String)>
+fn identify_syntax(attr: TokenStream, stream_span: Span) -> Result<bool, (Span, String)>
 {
 	if let Some(token) = next_token(&mut attr.into_iter(), "Could not identify syntax type.")?
 	{
 		match token
 		{
 			TokenTree::Group(_) => Ok(true),
-			TokenTree::Ident(_) if !disallow_short => Ok(false),
+			TokenTree::Ident(_) => Ok(false),
 			TokenTree::Punct(p) if is_nested_invocation(&p) => Ok(true),
-			_ if disallow_short =>
-			{
-				Err((
-					token.span(),
-					"Expected substitution group (Short syntax is disallowed at this level). \
-					 Received neither."
-						.into(),
-				))
-			},
 			_ =>
 			{
 				Err((
@@ -663,6 +647,8 @@ fn identify_syntax(
 	}
 }
 
+/// Validates that the attribute part of a duplicate invocation uses
+/// the verbose syntax, and returns all the substitutions that should be made.
 fn validate_verbose_attr(
 	attr: TokenStream,
 ) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
@@ -684,16 +670,7 @@ fn validate_verbose_attr(
 			{
 				TokenTree::Punct(p) if is_nested_invocation(&p) =>
 				{
-					let hints = "Hint: '#' is a nested invocation of the macro and must therefore \
-					             be followed by a group containing the \
-					             invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
-					             substitute2 ]\n][\n\tCode to be substituted whenever \
-					             'identifier' occurs \n]";
-					let nested_attr = parse_group(&mut iter, p.span(), hints)?;
-					let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span(), false)?;
-
-					let nested_item = parse_group(&mut iter, nested_attr.span(), hints)?;
-					let nested_duplicated = substitute(nested_item.stream(), nested_subs);
+					let nested_duplicated = invoke_nested(&mut iter, p.span())?;
 					let subs = validate_verbose_attr(nested_duplicated)?;
 					sub_groups.extend(subs.into_iter());
 				},
@@ -716,6 +693,7 @@ fn validate_verbose_attr(
 	Ok(sub_groups)
 }
 
+/// Extracts a substitution group in the verbose syntax.
 fn extract_verbose_substitutions(
 	tree: TokenTree,
 	existing: &Option<HashSet<String>>,
@@ -806,6 +784,8 @@ fn extract_verbose_substitutions(
 	Ok(substitutions)
 }
 
+/// Validates that the attribute part of a duplicate invocation uses
+/// the short syntax and returns the substitution that should be made.
 fn validate_short_attr(attr: TokenStream)
 	-> Result<Vec<(String, Vec<TokenStream>)>, (Span, String)>
 {
@@ -815,44 +795,22 @@ fn validate_short_attr(attr: TokenStream)
 	}
 
 	let mut iter = attr.into_iter();
-	let (mut result, mut span) = validate_short_get_identifiers(&mut iter, Span::call_site())?;
-
-	loop
-	{
-		validate_short_get_substitutions(
-			&mut iter,
-			span,
-			result.iter_mut().map(|(_, vec)| {
-				vec.push(TokenStream::new());
-				vec.last_mut().unwrap()
-			}),
-		)?;
-
-		if let Some(token) = iter.next()
-		{
-			span = token.span();
-			if let TokenTree::Punct(p) = token
-			{
-				if is_semicolon(&p)
-				{
-					continue;
-				}
-			}
-			return Err((span, "Expected ';'.".into()));
-		}
-		else
-		{
-			break;
-		}
-	}
+	let (idents, span) = validate_short_get_identifiers(&mut iter, Span::call_site())?;
+	let mut result = idents
+		.into_iter()
+		.map(|ident| (ident, Vec::new()))
+		.collect();
+	validate_short_get_all_substitution_goups(iter, span, &mut result)?;
 
 	Ok(result)
 }
 
+/// Assuming use of the short syntax, gets the initial list of substitution
+/// identifiers.
 fn validate_short_get_identifiers(
 	iter: &mut IntoIter,
 	mut span: Span,
-) -> Result<(Vec<(String, Vec<TokenStream>)>, Span), (Span, String)>
+) -> Result<(Vec<String>, Span), (Span, String)>
 {
 	let mut result = Vec::new();
 	loop
@@ -862,7 +820,7 @@ fn validate_short_get_identifiers(
 			span = next_token.span();
 			match next_token
 			{
-				TokenTree::Ident(ident) => result.push((ident.to_string(), Vec::new())),
+				TokenTree::Ident(ident) => result.push(ident.to_string()),
 				TokenTree::Punct(p) if is_semicolon(&p) => break,
 				_ => return Err((span, "Expected substitution identifier or ';'.".into())),
 			}
@@ -875,8 +833,69 @@ fn validate_short_get_identifiers(
 	Ok((result, span))
 }
 
+/// Gets all substitution groups in the short syntax and inserts
+/// them into the given vec.
+fn validate_short_get_all_substitution_goups(
+	iter: impl Iterator<Item = TokenTree>,
+	mut span: Span,
+	result: &mut Vec<(String, Vec<TokenStream>)>,
+) -> Result<(), (Span, String)>
+{
+	let mut iter = iter.peekable();
+	loop
+	{
+		if let Some(TokenTree::Punct(p)) = iter.peek()
+		{
+			if is_nested_invocation(&p)
+			{
+				let p_span = p.span();
+				// consume '#'
+				iter.next();
+
+				let nested_duplicated = invoke_nested(&mut iter, p_span)?;
+				validate_short_get_all_substitution_goups(
+					&mut nested_duplicated.into_iter(),
+					span.clone(),
+					result,
+				)?;
+			}
+		}
+		else
+		{
+			validate_short_get_substitutions(
+				&mut iter,
+				span,
+				result.iter_mut().map(|(_, vec)| {
+					vec.push(TokenStream::new());
+					vec.last_mut().unwrap()
+				}),
+			)?;
+
+			if let Some(token) = iter.next()
+			{
+				span = token.span();
+				if let TokenTree::Punct(p) = token
+				{
+					if is_semicolon(&p)
+					{
+						continue;
+					}
+				}
+				return Err((span, "Expected ';'.".into()));
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	Ok(())
+}
+
+/// Extracts a substitution group in the short syntax and inserts it into
+/// the elements returned by the given groups iterator.
 fn validate_short_get_substitutions<'a>(
-	iter: &mut IntoIter,
+	iter: &mut impl Iterator<Item = TokenTree>,
 	mut span: Span,
 	mut groups: impl Iterator<Item = &'a mut TokenStream>,
 ) -> Result<Span, (Span, String)>
@@ -951,13 +970,34 @@ fn substitute_token_tree(
 	result
 }
 
+/// Invokes a nested invocation of duplicate, assuming the
+/// next group is the attribute part of the invocation and the
+/// group after that is the element.
+fn invoke_nested(
+	iter: &mut impl Iterator<Item = TokenTree>,
+	span: Span,
+) -> Result<TokenStream, (Span, String)>
+{
+	let hints = "Hint: '#' is a nested invocation of the macro and must therefore be followed by \
+	             a group containing the invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
+	             substitute2 ]\n][\n\tCode to be substituted whenever 'identifier' occurs \n]";
+	let nested_attr = parse_group(iter, span, hints)?;
+	let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span())?;
+
+	let nested_item = parse_group(iter, nested_attr.span(), hints)?;
+	Ok(substitute(nested_item.stream(), nested_subs))
+}
+
 /// Tries to parse a valid group from the given token stream iterator, returning
 /// the group if successfull.
 ///
 /// If the next token is not a valid group, issues an error, that indicates to
 /// the given span and adding the given string to the end of the message.
-fn parse_group(iter: &mut IntoIter, parent_span: Span, hints: &str)
-	-> Result<Group, (Span, String)>
+fn parse_group(
+	iter: &mut impl Iterator<Item = TokenTree>,
+	parent_span: Span,
+	hints: &str,
+) -> Result<Group, (Span, String)>
 {
 	if let Some(tree) = iter.next()
 	{
