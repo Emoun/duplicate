@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Updated documentation. The short syntax is now used for the primary examples.
 - Crate readme license section no longer includes paragraph on the licensing of contibutions.
 
 ### Fixed
