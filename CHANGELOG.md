@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2020-05-17
+
 ### Added
 
 - Short syntax now supports nested macro invocations. Can only be used after the initial list of substitution identifiers. See [#2](https://github.com/Emoun/duplicate/issues/2).
