@@ -1,17 +1,20 @@
-use crate::substitute::substitute;
+use crate::substitute::{substitute, Substitution};
 use proc_macro::{token_stream::IntoIter, Delimiter, Group, Span, TokenStream, TokenTree};
 use proc_macro_error::{
 	proc_macro::{Punct, Spacing},
 	*,
 };
-use std::collections::{HashMap, HashSet};
+use std::{
+	collections::{HashMap, HashSet},
+	iter::Peekable,
+};
 
 /// Parses the attribute part of an invocation of duplicate, returning
 /// all the substitutions that should be made to the item.
 pub fn parse_attr(
 	attr: TokenStream,
 	stream_span: Span,
-) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
+) -> Result<Vec<HashMap<String, Substitution>>, (Span, String)>
 {
 	if identify_syntax(attr.clone(), stream_span)?
 	{
@@ -19,23 +22,29 @@ pub fn parse_attr(
 	}
 	else
 	{
-		let valid = validate_short_attr(attr)?;
+		let substitutions = validate_short_attr(attr)?;
 		let mut reorder = Vec::new();
-		let substitutions = valid;
 
-		for _ in 0..substitutions[0].1.len()
+		for _ in 0..substitutions[0].2.len()
 		{
 			reorder.push(HashMap::new());
 		}
 
-		for (ident, subs) in substitutions
+		for (ident, args, subs) in substitutions
 		{
 			for (idx, sub) in subs.into_iter().enumerate()
 			{
-				reorder[idx].insert(ident.clone(), sub);
+				let substitution = Substitution::new(&args, sub.into_iter());
+				if let Ok(substitution) = substitution
+				{
+					reorder[idx].insert(ident.clone(), substitution);
+				}
+				else
+				{
+					return Err((Span::call_site(), "Failed creating substitution".into()));
+				}
 			}
 		}
-
 		Ok(reorder)
 	}
 }
@@ -69,7 +78,7 @@ fn identify_syntax(attr: TokenStream, stream_span: Span) -> Result<bool, (Span, 
 /// the verbose syntax, and returns all the substitutions that should be made.
 fn validate_verbose_attr(
 	attr: TokenStream,
-) -> Result<Vec<HashMap<String, TokenStream>>, (Span, String)>
+) -> Result<Vec<HashMap<String, Substitution>>, (Span, String)>
 {
 	if attr.is_empty()
 	{
@@ -115,7 +124,7 @@ fn validate_verbose_attr(
 fn extract_verbose_substitutions(
 	tree: TokenTree,
 	existing: &Option<HashSet<String>>,
-) -> Result<HashMap<String, TokenStream>, (Span, String)>
+) -> Result<HashMap<String, Substitution>, (Span, String)>
 {
 	// Must get span now, before it's corrupted.
 	let tree_span = tree.span();
@@ -162,7 +171,7 @@ fn extract_verbose_substitutions(
 						));
 					}
 				}
-				substitutions.insert(ident_string, sub.stream());
+				substitutions.insert(ident_string, Substitution::new_simple(sub.stream()));
 			}
 			else
 			{
@@ -204,8 +213,9 @@ fn extract_verbose_substitutions(
 
 /// Validates that the attribute part of a duplicate invocation uses
 /// the short syntax and returns the substitution that should be made.
-fn validate_short_attr(attr: TokenStream)
-	-> Result<Vec<(String, Vec<TokenStream>)>, (Span, String)>
+fn validate_short_attr(
+	attr: TokenStream,
+) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>, (Span, String)>
 {
 	if attr.is_empty()
 	{
@@ -214,9 +224,9 @@ fn validate_short_attr(attr: TokenStream)
 
 	let mut iter = attr.into_iter();
 	let (idents, span) = validate_short_get_identifiers(&mut iter, Span::call_site())?;
-	let mut result = idents
+	let mut result: Vec<_> = idents
 		.into_iter()
-		.map(|ident| (ident, Vec::new()))
+		.map(|(ident, args)| (ident, args, Vec::new()))
 		.collect();
 	validate_short_get_all_substitution_goups(iter, span, &mut result)?;
 
@@ -228,17 +238,24 @@ fn validate_short_attr(attr: TokenStream)
 fn validate_short_get_identifiers(
 	iter: &mut IntoIter,
 	mut span: Span,
-) -> Result<(Vec<String>, Span), (Span, String)>
+) -> Result<(Vec<(String, Vec<String>)>, Span), (Span, String)>
 {
+	let mut iter = iter.peekable();
 	let mut result = Vec::new();
 	loop
 	{
-		if let Some(next_token) = next_token(iter, "Expected substitution identifier or ';'.")?
+		if let Some(next_token) = next_token(&mut iter, "Expected substitution identifier or ';'.")?
 		{
 			span = next_token.span();
 			match next_token
 			{
-				TokenTree::Ident(ident) => result.push(ident.to_string()),
+				TokenTree::Ident(ident) =>
+				{
+					result.push((
+						ident.to_string(),
+						validate_short_get_identifier_arguments(&mut iter)?, // Vec::new()
+					))
+				},
 				TokenTree::Punct(p) if is_semicolon(&p) => break,
 				_ => return Err((span, "Expected substitution identifier or ';'.".into())),
 			}
@@ -251,12 +268,46 @@ fn validate_short_get_identifiers(
 	Ok((result, span))
 }
 
+fn validate_short_get_identifier_arguments(
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+) -> Result<Vec<String>, (Span, String)>
+{
+	let mut result = Vec::new();
+	if let Some(token) = iter.peek()
+	{
+		if let TokenTree::Group(group) = token
+		{
+			if check_delimiter(group).is_ok()
+			{
+				let mut arg_iter = group.stream().into_iter();
+				while let Some(token) = arg_iter.next()
+				{
+					if let TokenTree::Ident(ident) = token
+					{
+						result.push(ident.to_string());
+					}
+					else
+					{
+						return Err((
+							token.span(),
+							"Expected substitution identifier argument as identifier.".into(),
+						));
+					}
+				}
+				// Make sure to consume the group
+				let _ = iter.next();
+			}
+		}
+	}
+	Ok(result)
+}
+
 /// Gets all substitution groups in the short syntax and inserts
 /// them into the given vec.
-fn validate_short_get_all_substitution_goups(
+fn validate_short_get_all_substitution_goups<'a>(
 	iter: impl Iterator<Item = TokenTree>,
 	mut span: Span,
-	result: &mut Vec<(String, Vec<TokenStream>)>,
+	result: &mut Vec<(String, Vec<String>, Vec<TokenStream>)>,
 ) -> Result<(), (Span, String)>
 {
 	let mut iter = iter.peekable();
@@ -283,7 +334,7 @@ fn validate_short_get_all_substitution_goups(
 			validate_short_get_substitutions(
 				&mut iter,
 				span,
-				result.iter_mut().map(|(_, vec)| {
+				result.iter_mut().map(|(_, _, vec)| {
 					vec.push(TokenStream::new());
 					vec.last_mut().unwrap()
 				}),
@@ -353,11 +404,11 @@ fn invoke_nested(
 }
 
 /// Tries to parse a valid group from the given token stream iterator, returning
-/// the group if successfull.
+/// the group if successful.
 ///
 /// If the next token is not a valid group, issues an error, that indicates to
 /// the given span and adding the given string to the end of the message.
-fn parse_group(
+pub fn parse_group(
 	iter: &mut impl Iterator<Item = TokenTree>,
 	parent_span: Span,
 	hints: &str,
@@ -383,7 +434,8 @@ fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
 {
 	if let TokenTree::Group(group) = tree
 	{
-		check_delimiter(group)
+		check_delimiter(&group)?;
+		Ok(group)
 	}
 	else
 	{
@@ -397,16 +449,16 @@ fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
 /// Checks that the given group's delimiter is a bracket ('[]','{}', or '()').
 ///
 /// If so, returns the same group, otherwise issues an error.
-fn check_delimiter(group: Group) -> Result<Group, (Span, String)>
+fn check_delimiter(group: &Group) -> Result<(), (Span, String)>
 {
 	if group.delimiter() == Delimiter::None
 	{
 		return Err((
 			group.span(),
-			"Unexpected delimiter for group. Expected '[]','{}', or '()' but received non.".into(),
+			"Unexpected delimiter for group. Expected '[]','{}', or '()' but received none.".into(),
 		));
 	}
-	Ok(group)
+	Ok(())
 }
 
 /// Checks whether the given punctuation is exactly equal to the given
@@ -432,7 +484,10 @@ fn is_nested_invocation(p: &Punct) -> bool
 ///
 /// If the token is a group without delimiters, the token inside the groups is
 /// returned. If the group has more than one token, an error is returned.
-fn next_token(iter: &mut IntoIter, err_msg: &str) -> Result<Option<TokenTree>, (Span, String)>
+fn next_token(
+	iter: &mut impl Iterator<Item = TokenTree>,
+	err_msg: &str,
+) -> Result<Option<TokenTree>, (Span, String)>
 {
 	match iter.next()
 	{
