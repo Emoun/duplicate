@@ -1,4 +1,4 @@
-use crate::parse::parse_group;
+use crate::parse::{parse_group, punct_is_char};
 use proc_macro::{Delimiter, Group, Ident, TokenStream, TokenTree};
 use std::collections::HashMap;
 
@@ -146,11 +146,20 @@ fn substitute_next_token(
 				{
 					if let Ok(group) = parse_group(tree, ident.span(), "")
 					{
-						let mut group_stream_iter = group.stream().into_iter();
+						let mut group_stream_iter = group.stream().into_iter().peekable();
 						let mut args = Vec::new();
 						while let Ok(group) = parse_group(&mut group_stream_iter, ident.span(), "")
 						{
 							args.push(group.stream());
+							match group_stream_iter.peek()
+							{
+								Some(TokenTree::Punct(punct)) if punct_is_char(punct, ',') =>
+								{
+									let _ = group_stream_iter.next();
+								},
+								Some(_) => panic!("Expected ','."),
+								_ => (),
+							}
 						}
 						subst
 							.apply(&args)

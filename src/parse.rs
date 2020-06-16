@@ -463,7 +463,7 @@ fn check_delimiter(group: &Group) -> Result<(), (Span, String)>
 
 /// Checks whether the given punctuation is exactly equal to the given
 /// character.
-fn punct_is_char(p: &Punct, c: char) -> bool
+pub fn punct_is_char(p: &Punct, c: char) -> bool
 {
 	p.as_char() == c && p.spacing() == Spacing::Alone
 }
