@@ -393,6 +393,7 @@ use proc_macro::{Span, TokenStream};
 use proc_macro_error::*;
 
 mod parse;
+mod parse_utils;
 mod substitute;
 // Tests the crate readme file's Rust examples.
 mod crate_readme_test;
