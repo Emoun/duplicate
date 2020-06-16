@@ -2,23 +2,43 @@ use crate::parse_utils::*;
 use proc_macro::{Delimiter, Group, Ident, TokenStream, TokenTree};
 use std::collections::HashMap;
 
+/// The types of sub-substitutions composing a single substitution.
 #[derive(Debug)]
 pub enum SubType
 {
+	/// A simple substitution with the TokenStream
 	Token(TokenStream),
+	/// Substitute with the TokenStream in the argument of given index.
 	Argument(usize),
+	/// Substitution with a group with the specified delimiter and the contents
+	/// being what is produced by the nested substitution.
 	Group(Delimiter, Substitution),
 }
 
+/// A substitution for an identifier.
+///
+/// A substitution takes a specific number of arguments as TokenStreams and
+/// produces a TokenStream that is to be substituted for the identifier.
+///
+/// To create a substitution for an identifier, `new` is given the list of
+/// arguments and the tokens to be used as a substitution. The `apply` method
+/// can then be given a set of substitution arguments as TokenStreams (the
+/// number of arguments must match the number given to `new`,) wich will yield
+/// the final TokenStream that should be substituted for the identifer ( +
+/// arguments).
 #[derive(Debug)]
 pub struct Substitution
 {
+	/// The number of arguments to the substitution
 	arg_count: usize,
+	/// The substitution. The list is ordered, with the result of an application
+	/// being the concatenation of each sub-substitution.
 	sub: Vec<SubType>,
 }
 
 impl Substitution
 {
+	/// Create a new substitution that takes no arguments.
 	pub fn new_simple(substitution: TokenStream) -> Self
 	{
 		Self {
@@ -27,6 +47,13 @@ impl Substitution
 		}
 	}
 
+	/// Create a new substitution.
+	///
+	/// The given argument list is assumed to be ordered and its length is the
+	/// number of arguments to the substitution.
+	/// The tokens produced by the iterator will be the basis for applying a
+	/// substitution, where each instance of an argument identifier being
+	/// replaced by the arguments passed to the a substitution identifier.
 	pub fn new(arguments: &Vec<String>, stream: impl Iterator<Item = TokenTree>)
 		-> Result<Self, ()>
 	{
@@ -74,11 +101,16 @@ impl Substitution
 		Ok(substitution)
 	}
 
+	/// Apply the substitution, assuming it takes no arguments.
 	pub fn apply_simple(&self) -> Result<TokenStream, ()>
 	{
 		self.apply(&Vec::new())
 	}
 
+	/// Apply the substitution to the given arguments.
+	///
+	/// The number of arguments must match the exact number accepted by the
+	/// substitution.
 	pub fn apply(&self, arguments: &Vec<TokenStream>) -> Result<TokenStream, ()>
 	{
 		if arguments.len() == self.arg_count

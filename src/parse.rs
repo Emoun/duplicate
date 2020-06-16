@@ -268,6 +268,7 @@ fn validate_short_get_identifiers(
 	Ok((result, span))
 }
 
+/// Assuming use of the short syntax, gets the list of identifier arguments.
 fn validate_short_get_identifier_arguments(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 ) -> Result<Vec<String>, (Span, String)>
