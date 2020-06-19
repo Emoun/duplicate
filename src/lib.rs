@@ -76,6 +76,66 @@
 //! is valid. Additionally, any "bracket" type is valid; we could have used `()`
 //! or `{}` anywhere `[]` is used in these examples.
 //!
+//! ## Parameterized Substitution
+//!
+//! Say you have a struct that wraps a vector and you want to give access to the vector's
+//! `get` and `get_mut` methods directly on your struct:
+//!
+//! ```
+//! struct VecWrap<T>(Vec<T>);
+//!
+//! impl<T> VecWrap<T> {
+//!   pub fn get(&self, idx: usize) -> Option<&T> {
+//!     self.0.get(idx)
+//!   }
+//!	  pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+//!     self.0.get_mut(idx)
+//!   }
+//! }
+//!
+//! let mut vec = VecWrap(vec![1,2,3]);
+//! assert_eq!(*vec.get(0).unwrap(), 1);
+//! *vec.get_mut(1).unwrap() = 5;
+//! assert_eq!(*vec.get(1).unwrap(), 5);
+//! ```
+//!
+//! Even though the implementations of the two versions of `get` are almost identical,
+//! you always need to duplicate the code, because rust cannot be generic over mutability.
+//! Parameterized substitution can help with the implementation of constant and mutable
+//! versions of methods and functions:
+//!
+//! ```
+//! # struct VecWrap<T>(Vec<T>);
+//! # use duplicate::duplicate;
+//!
+//! impl<T> VecWrap<T> {
+//!   #[duplicate(
+//!     method_name  reference(type);
+//!     [get]        [& type];
+//!     [get_mut]    [&mut type];
+//!   )]
+//!   pub fn method_name(self: reference([Self]), idx: usize) -> Option<reference([T])> {
+//!     self.0.method_name(idx)
+//!   }
+//! }
+//!
+//! let mut vec = VecWrap(vec![1,2,3]);
+//! assert_eq!(*vec.get(0).unwrap(), 1);
+//! *vec.get_mut(1).unwrap() = 5;
+//! assert_eq!(*vec.get(1).unwrap(), 5);
+//! ```
+//!
+//! If a substitution identifier is followed by a brace type (`()`, `[]` or `{}`) containing
+//! a list of arguments, those argument can be used to costumize the substitution for each
+//! use of the identifier.
+//! In this example, the `reference` identifier takes 1 parameter `type`, which is used in the
+//! substitutions to create either a shared reference to the type or a mutable one.
+//! When using the identifer in the method, we then give it different arguments to construct
+//! either shared or mutable references on each version of the method.
+//! E.g. `reference([Self])` become either `&Self` or `&mut Self`.
+//!
+//! A substitution identifier can take any number of parameters:
+//!
 //! ## Nested Invocation
 //!
 //! Imagine we have the following trait with the method `is_negative` that
