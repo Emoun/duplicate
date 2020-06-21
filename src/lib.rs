@@ -78,8 +78,10 @@
 //!
 //! ## Parameterized Substitution
 //!
-//! Say you have a struct that wraps a vector and you want to give access to the vector's
-//! `get` and `get_mut` methods directly on your struct:
+//! Parameterized substitution allows us to pass code snippets to substitution
+//! identifiers to customize the substitution for that specific use of the
+//! identifier. Say we have a struct that wraps a vector and we want to give
+//! access to the vector's `get` and `get_mut` methods directly:
 //!
 //! ```
 //! struct VecWrap<T>(Vec<T>);
@@ -88,7 +90,7 @@
 //!   pub fn get(&self, idx: usize) -> Option<&T> {
 //!     self.0.get(idx)
 //!   }
-//!	  pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+//! 	  pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
 //!     self.0.get_mut(idx)
 //!   }
 //! }
@@ -99,42 +101,89 @@
 //! assert_eq!(*vec.get(1).unwrap(), 5);
 //! ```
 //!
-//! Even though the implementations of the two versions of `get` are almost identical,
-//! you always need to duplicate the code, because rust cannot be generic over mutability.
-//! Parameterized substitution can help with the implementation of constant and mutable
-//! versions of methods and functions:
+//! Even though the implementations of the two versions of `get` are almost
+//! identical, we will always need to duplicate the code, because Rust cannot be
+//! generic over mutability. We can use parameterized substitution to help with
+//! the implementation of constant and mutable versions of methods and
+//! functions:
+//!
+//! ```
+//! # use duplicate::duplicate;
+//! # struct VecWrap<T>(Vec<T>);
+//! impl<T> VecWrap<T> {
+//!   #[duplicate(
+//!     method     reference(type);
+//!     [get]      [& type];
+//!     [get_mut]  [&mut type];
+//!   )]
+//!   pub fn method(self: reference([Self]), idx: usize) -> Option<reference([T])> {
+//!     self.0.method(idx)
+//!   }
+//! }
+//! # let mut vec = VecWrap(vec![1,2,3]);
+//! # assert_eq!(*vec.get(0).unwrap(), 1);
+//! # *vec.get_mut(1).unwrap() = 5;
+//! # assert_eq!(*vec.get(1).unwrap(), 5);
+//! ```
+//!
+//! In a `duplicate` invocationn, if a substitution identifier is followed by
+//! brackets containing a list of parameters, they can be used in the
+//! substitution. In this example, the `reference` identifier takes 1 parameter
+//! named `type`, which is used in the substitutions to create either a shared
+//! reference to the type or a mutable one. When using the `reference` in the
+//! method declaration, we give it different types as arguments to construct
+//! either shared or mutable references.
+//! E.g. `reference([Self])` become `&Self` in the first duplicate and `&mut
+//! Self` in the second. An argument can be any code snipped inside brackets.
+//!
+//! A substitution identifier can take any number of parameters.
+//! We can use this if we need to also provide the references with a lifetime:
+//!
+//! ```
+//! # use duplicate::duplicate;
+//! # struct VecWrap<T>(Vec<T>);
+//! impl<T> VecWrap<T> {
+//!   #[duplicate(
+//!     method     reference(lifetime type);
+//!     [get]      [& 'lifetime type];
+//!     [get_mut]  [& 'lifetime mut type];
+//!   )]
+//!   pub fn method<'a>(self: reference([a],[Self]),idx: usize) -> Option<reference([a],[T])> {
+//!     self.0.method(idx)
+//!   }
+//! }
+//! # let mut vec = VecWrap(vec![1,2,3]);
+//! # assert_eq!(*vec.get(0).unwrap(), 1);
+//! # *vec.get_mut(1).unwrap() = 5;
+//! # assert_eq!(*vec.get(1).unwrap(), 5);
+//! ```
+//!
+//! Here we pass the lifetime `'a` to the substitution as the first argument,
+//! and the type as the second. Notice how the arguments are separated by a
+//! comma. This results in the following code:
 //!
 //! ```
 //! # struct VecWrap<T>(Vec<T>);
-//! # use duplicate::duplicate;
-//!
 //! impl<T> VecWrap<T> {
-//!   #[duplicate(
-//!     method_name  reference(type);
-//!     [get]        [& type];
-//!     [get_mut]    [&mut type];
-//!   )]
-//!   pub fn method_name(self: reference([Self]), idx: usize) -> Option<reference([T])> {
-//!     self.0.method_name(idx)
+//!   pub fn get<'a>(self: &'a Self, idx: usize) -> Option<&'a T> {
+//!     self.0.get(idx)
+//!   }
+//! 	  pub fn get_mut<'a>(self: &'a mut Self, idx: usize) -> Option<&'a mut T> {
+//!     self.0.get_mut(idx)
 //!   }
 //! }
-//!
-//! let mut vec = VecWrap(vec![1,2,3]);
-//! assert_eq!(*vec.get(0).unwrap(), 1);
-//! *vec.get_mut(1).unwrap() = 5;
-//! assert_eq!(*vec.get(1).unwrap(), 5);
+//! # let mut vec = VecWrap(vec![1,2,3]);
+//! # assert_eq!(*vec.get(0).unwrap(), 1);
+//! # *vec.get_mut(1).unwrap() = 5;
+//! # assert_eq!(*vec.get(1).unwrap(), 5);
 //! ```
 //!
-//! If a substitution identifier is followed by a brace type (`()`, `[]` or `{}`) containing
-//! a list of arguments, those argument can be used to costumize the substitution for each
-//! use of the identifier.
-//! In this example, the `reference` identifier takes 1 parameter `type`, which is used in the
-//! substitutions to create either a shared reference to the type or a mutable one.
-//! When using the identifer in the method, we then give it different arguments to construct
-//! either shared or mutable references on each version of the method.
-//! E.g. `reference([Self])` become either `&Self` or `&mut Self`.
-//!
-//! A substitution identifier can take any number of parameters:
+//! Notice also the way we pass lifetimes to identifiers: `reference([a],
+//! [Self])`. The lifetime is passed without the `'` prefix, which is instead
+//! present in the substitution before the `lifetime`: `[& 'lifetime type]`.
+//! This is because the rust syntax disallows lifetimes in brackets.
+//! Our solution is therefore a hacking of the system and not a property of
+//! `duplicate`.
 //!
 //! ## Nested Invocation
 //!

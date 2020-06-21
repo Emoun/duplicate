@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Short syntax now supports parameterized substitution. See [#5](https://github.com/Emoun/duplicate/issues/5).
+
 ## [0.2.2] - 2020-05-17
 
 ### Added
