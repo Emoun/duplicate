@@ -78,9 +78,7 @@
 //!
 //! ## Parameterized Substitution
 //!
-//! Parameterized substitution allows us to pass code snippets to substitution
-//! identifiers to customize the substitution for that specific use of the
-//! identifier. Say we have a struct that wraps a vector and we want to give
+//! Say we have a struct that wraps a vector and we want to give
 //! access to the vector's `get` and `get_mut` methods directly:
 //!
 //! ```
@@ -90,7 +88,7 @@
 //!   pub fn get(&self, idx: usize) -> Option<&T> {
 //!     self.0.get(idx)
 //!   }
-//! 	  pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
+//!   pub fn get_mut(&mut self, idx: usize) -> Option<&mut T> {
 //!     self.0.get_mut(idx)
 //!   }
 //! }
@@ -103,9 +101,10 @@
 //!
 //! Even though the implementations of the two versions of `get` are almost
 //! identical, we will always need to duplicate the code, because Rust cannot be
-//! generic over mutability. We can use parameterized substitution to help with
-//! the implementation of constant and mutable versions of methods and
-//! functions:
+//! generic over mutability. _Parameterized substitution_ allows us to pass code
+//! snippets to substitution identifiers to customize the substitution for that
+//! specific use of the identifier. We can use it to help with the
+//! implementation of constant and mutable versions of methods and functions:
 //!
 //! ```
 //! # use duplicate::duplicate;
@@ -126,14 +125,14 @@
 //! # assert_eq!(*vec.get(1).unwrap(), 5);
 //! ```
 //!
-//! In a `duplicate` invocationn, if a substitution identifier is followed by
+//! In a `duplicate` invocation, if a substitution identifier is followed by
 //! brackets containing a list of parameters, they can be used in the
 //! substitution. In this example, the `reference` identifier takes 1 parameter
 //! named `type`, which is used in the substitutions to create either a shared
 //! reference to the type or a mutable one. When using the `reference` in the
 //! method declaration, we give it different types as arguments to construct
 //! either shared or mutable references.
-//! E.g. `reference([Self])` become `&Self` in the first duplicate and `&mut
+//! E.g. `reference([Self])` becomes `&Self` in the first duplicate and `&mut
 //! Self` in the second. An argument can be any code snipped inside brackets.
 //!
 //! A substitution identifier can take any number of parameters.
@@ -144,7 +143,7 @@
 //! # struct VecWrap<T>(Vec<T>);
 //! impl<T> VecWrap<T> {
 //!   #[duplicate(
-//!     method     reference(lifetime type);
+//!     method     reference(lifetime, type);
 //!     [get]      [& 'lifetime type];
 //!     [get_mut]  [& 'lifetime mut type];
 //!   )]
@@ -180,10 +179,10 @@
 //!
 //! Notice also the way we pass lifetimes to identifiers: `reference([a],
 //! [Self])`. The lifetime is passed without the `'` prefix, which is instead
-//! present in the substitution before the `lifetime`: `[& 'lifetime type]`.
-//! This is because the rust syntax disallows lifetimes in brackets.
-//! Our solution is therefore a hacking of the system and not a property of
-//! `duplicate`.
+//! present in the substitution before the 	lifetime: `[& 'lifetime type]`.
+//! This is because the rust syntax disallows lifetimes in brackets on their
+//! own. Our solution is therefore a hacking of the system and not a property of
+//! `duplicate` itself.
 //!
 //! ## Nested Invocation
 //!
@@ -270,10 +269,10 @@
 //! assert!(!42i16.is_negative());
 //! assert!(!42i32.is_negative());
 //! ```
-//! However ironically, we here had to repeat ourselves in the macro invocation
+//! However, ironically, we here had to repeat ourselves in the macro invocation
 //! instead of the code: we needed to repeat the implementations `[ false ]` and
-//! `[ *self < 0 ]` three times each. We can utilize
-//! _nested invocation_ to remove the last bit of repetition:
+//! `[ *self < 0 ]` three times each. We can utilize _nested invocation_ to
+//! remove the last bit of repetition:
 //!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
@@ -429,12 +428,15 @@
 //! before `int_type` without having any effect on the expanded code.
 //!
 //! The verbose syntax is not very concise but it has some advantages over
-//! the shorter syntax in regards to readability. Using many identifiers and
-//! long substitutions can quickly become unwieldy
-//! in the short syntax. The verbose syntax deals better with both cases as it
-//! will grow horizontally instead of vertically.
+//! the short syntax in regards to readability. Using many identifiers and
+//! long substitutions can quickly become unwieldy in the short syntax.
+//! The verbose syntax deals better with both cases as it will grow horizontally
+//! instead of vertically.
 //!
-//! The verbose syntax also offer nested invocation. The syntax is exactly the
+//! The verbose syntax does not currently support parameterized substitution.
+//! It is planned to be added to this syntax in a future update.
+//!
+//! The verbose syntax does offer nested invocation. The syntax is exactly the
 //! same, but since there is no initial substitution identifier list, nested
 //! calls can be used anywhere (though still not inside substitution groups.)
 //! The previous `IsNegative` nested invocation example can be written as
@@ -479,11 +481,11 @@
 //! isn't the outer-most invocation and therefore doesn't discriminate between
 //! identifiers. We had to use a different identifier in the nested invocations
 //! (`int_type_nested`) than in the code (`int_type`), because otherwise the
-//! nested invocation would substitute the substitution identifier, too, instead
+//! nested invocation would substitute the substitution identifier too, instead
 //! of only substituting in the nested invocation's substitute.
 //!
-//! The nested invocations must produce the syntax of their
-//! parent invocation. However, each nested invocation's private syntax is free
+//! Nested invocations must produce the syntax of their
+//! parent invocation. However, each invocation's private syntax is free
 //! to use any syntax type. Notice in our above example, the nested
 //! invocations use short syntax but produce verbose syntax for the outer-most
 //! invocation.
@@ -510,12 +512,8 @@ mod crate_readme_test;
 use parse::*;
 use substitute::*;
 
-/// Duplicates and substitutes given identifiers for different code in each
-/// duplicate.
-///
-/// _Substitution identifiers_ can be inserted into the code. They will be
-/// substituted with the different substitution code in each duplicate version
-/// of the original code.
+/// Duplicates the item it is applied to and substitutes specific identifiers
+/// for different code snippets in each duplicate.
 ///
 /// # Short Syntax
 /// ```
@@ -594,6 +592,44 @@ use substitute::*;
 /// identifiers, however their order is unimportant, as can be seen from the
 /// last substitution group above, where `max_value` comes before `int_type`.
 ///
+/// # Parameterized Substitutoin
+///
+/// _Only available for the short syntax._
+///
+/// ```
+/// use duplicate::duplicate;
+/// struct VecWrap<T>(Vec<T>);
+///
+/// impl<T> VecWrap<T> {
+///   #[duplicate(
+///     method     reference(lifetime, type);
+///     [get]      [& 'lifetime type];
+///     [get_mut]  [& 'lifetime mut type];
+///   )]
+///   pub fn method<'a>(self: reference([a],[Self]),idx: usize) -> Option<reference([a],[T])> {
+///     self.0.method(idx)
+///   }
+/// }
+///
+/// let mut vec = VecWrap(vec![1,2,3]);
+/// assert_eq!(*vec.get(0).unwrap(), 1);
+/// *vec.get_mut(1).unwrap() = 5;
+/// assert_eq!(*vec.get(1).unwrap(), 5);
+/// ```
+///
+/// This implements two versions of the method:
+///
+/// - `get`: Borrows `self` immutably and return a shared reference.
+/// - `get_mut`: Borrows `self` mutably and returns a mutable reference.
+///
+/// If an identifier is followed by brackets (in both its declaration and its
+/// use), a set of parameters can be provided in the bracket to customize the
+/// subtituion for each use.
+/// In the declaration a list of identifiers is given, which can be used in its
+/// substitutions. When using the identifier, argument code snippets must be
+/// given in a comma separated list, with each argument being inclosed in
+/// brackets (`()`, `[]`, or `{}`).
+///
 /// # Nested Invocation
 /// ```
 /// use duplicate::duplicate;
@@ -625,9 +661,9 @@ use substitute::*;
 /// This implements `IsNegative` 4 times:
 ///
 /// 1. For the type `u8` with the implementation of the method simply returning
-/// `false`. 2. For the type `u16` the same way as `u8`.
-/// 3. For the type `u32` the same way as `u8` and `u16`.
-/// 4. For `i8` with the implementation of the method checking whether it's less
+/// `false`. 1. For the type `u16` the same way as `u8`.
+/// 1. For the type `u32` the same way as `u8` and `u16`.
+/// 1. For `i8` with the implementation of the method checking whether it's less
 /// than `0`.
 ///
 /// We used `#` to start a _nested invocation_ of the macro. In it, we use the

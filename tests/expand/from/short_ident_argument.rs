@@ -18,7 +18,7 @@ fn fn_name<'a>(arg: refs([Vec<i32>])){}
 
 // Test multi-argument identifier
 #[duplicate(
-	fn_name 		refs(lifetime type);
+	fn_name 		refs(lifetime, type);
 	[fn_const_3]	[& lifetime type];
 	[fn_mut_3]		[& lifetime mut type];
 )]
@@ -26,7 +26,7 @@ fn fn_name<'a>(arg: refs(['a],[i32])){}
 
 // Test multi-argument identifier and multi-token arguments
 #[duplicate(
-	fn_name 		refs(lifetime type);
+	fn_name 		refs(lifetime, type);
 	[fn_const_4]	[& lifetime type];
 	[fn_mut_4]		[& lifetime mut type];
 )]
@@ -34,7 +34,7 @@ fn fn_name<'a>(arg: refs(['a],[Result<i32,u8>],)){}
 
 // Test multiple invocations of identifiers with arguments
 #[duplicate(
-	fn_name 		refs(lifetime type);
+	fn_name 		refs(lifetime, type);
 	[fn_const_5]	[& lifetime type];
 	[fn_mut_5]		[& lifetime mut type];
 )]

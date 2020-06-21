@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Short syntax now supports parameterized substitution. See [#5](https://github.com/Emoun/duplicate/issues/5).
+- Short syntax now supports parameterized substitution. 
+This allows identifiers to take arguments that can be used to customize the substitution for each use.
+See [#5](https://github.com/Emoun/duplicate/issues/5).
 
 ## [0.2.2] - 2020-05-17
 

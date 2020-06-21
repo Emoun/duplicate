@@ -286,6 +286,14 @@ fn validate_short_get_identifier_arguments(
 					if let TokenTree::Ident(ident) = token
 					{
 						result.push(ident.to_string());
+						if let Some(token) = arg_iter.next()
+						{
+							match token
+							{
+								TokenTree::Punct(punct) if punct_is_char(&punct, ',') => (),
+								_ => return Err((token.span(), "Expected ','.".into())),
+							}
+						}
 					}
 					else
 					{
