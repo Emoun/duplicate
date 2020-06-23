@@ -35,3 +35,13 @@ mod module {
 	pub struct name(member);
 }
 
+// Test substitution that includes braces
+#[duplicate(
+	fn_name 		var;
+	[ fn_name_1 ]	[ Struct() ];
+	[ fn_name_2 ]	[ array[4] ];
+	[ fn_name_3 ]	[ Struct{} ];
+)]
+fn fn_name() {
+	let _ = var;
+}

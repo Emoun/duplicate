@@ -58,7 +58,8 @@ impl Substitution
 		-> Result<Self, ()>
 	{
 		let mut substitutions = Vec::new();
-		let mut next_tokens = None;
+		// Group tokens that aren't substitution identifiers or groups
+		let mut saved_tokens = None;
 
 		let find_argument =
 			|ident: &Ident| arguments.iter().position(|arg| *arg == ident.to_string());
@@ -69,7 +70,7 @@ impl Substitution
 			{
 				TokenTree::Ident(ident) if find_argument(&ident).is_some() =>
 				{
-					if let Some(sub_stream) = next_tokens.take()
+					if let Some(sub_stream) = saved_tokens.take()
 					{
 						substitutions.push(SubType::Token(sub_stream));
 					}
@@ -77,6 +78,10 @@ impl Substitution
 				},
 				TokenTree::Group(group) =>
 				{
+					if let Some(sub_stream) = saved_tokens.take()
+					{
+						substitutions.push(SubType::Token(sub_stream));
+					}
 					substitutions.push(SubType::Group(
 						group.delimiter(),
 						Substitution::new(arguments, group.stream().into_iter())?,
@@ -84,13 +89,13 @@ impl Substitution
 				},
 				token =>
 				{
-					next_tokens
+					saved_tokens
 						.get_or_insert_with(|| TokenStream::new())
 						.extend(Some(token).into_iter())
 				},
 			}
 		}
-		if let Some(sub_stream) = next_tokens
+		if let Some(sub_stream) = saved_tokens
 		{
 			substitutions.push(SubType::Token(sub_stream));
 		}
