@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed issue with the short syntax where substitutions that included any bracket type would be expanded wrong. See [#9](https://github.com/Emoun/duplicate/issues/9).
 
-## [0.2.3] - 2020-06-21
+## [0.2.3] - 2020-06-21 [YANKED]
 
 ### Added
 
