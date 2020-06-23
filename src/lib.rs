@@ -104,7 +104,8 @@
 //! generic over mutability. _Parameterized substitution_ allows us to pass code
 //! snippets to substitution identifiers to customize the substitution for that
 //! specific use of the identifier. We can use it to help with the
-//! implementation of constant and mutable versions of methods and functions:
+//! implementation of constant and mutable versions of methods and functions.
+//! The following `impl` is identical to the above code:
 //!
 //! ```
 //! # use duplicate::duplicate;
@@ -133,7 +134,7 @@
 //! method declaration, we give it different types as arguments to construct
 //! either shared or mutable references.
 //! E.g. `reference([Self])` becomes `&Self` in the first duplicate and `&mut
-//! Self` in the second. An argument can be any code snipped inside brackets.
+//! Self` in the second. An argument can be any code snippet inside brackets.
 //!
 //! A substitution identifier can take any number of parameters.
 //! We can use this if we need to also provide the references with a lifetime:
@@ -167,7 +168,7 @@
 //!   pub fn get<'a>(self: &'a Self, idx: usize) -> Option<&'a T> {
 //!     self.0.get(idx)
 //!   }
-//! 	  pub fn get_mut<'a>(self: &'a mut Self, idx: usize) -> Option<&'a mut T> {
+//!   pub fn get_mut<'a>(self: &'a mut Self, idx: usize) -> Option<&'a mut T> {
 //!     self.0.get_mut(idx)
 //!   }
 //! }

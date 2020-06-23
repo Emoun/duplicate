@@ -17,11 +17,11 @@ script:
 
 matrix:
   include:
-  - rust: nightly-2020-04-09
+  - rust: nightly-2020-06-23
     before_script: 
     script:
-    - rustup component add --toolchain nightly-2020-04-09 rustfmt
-    - cargo +nightly-2020-04-09 fmt -- --check
+    - rustup component add --toolchain nightly-2020-06-23 rustfmt
+    - cargo +nightly-2020-06-23 fmt -- --check
 
   - rust: nightly
     before_script: 
@@ -30,6 +30,7 @@ matrix:
     - cargo +nightly fmt -- --check
   
   - stage : deploy
+    if: tag IS present
     rust: stable
     before_script:
     script: skip
