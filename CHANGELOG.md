@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2020-06-23
+
 ### Fixed
 
 - Fixed issue with the short syntax where substitutions that included any bracket type would be expanded wrong. See [#9](https://github.com/Emoun/duplicate/issues/9).
