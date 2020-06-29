@@ -1,8 +1,4 @@
-use proc_macro::{Delimiter, Group, Span, TokenTree};
-use proc_macro_error::{
-	proc_macro::{Punct, Spacing},
-	*,
-};
+use proc_macro::{Delimiter, Group, Punct, Spacing, Span, TokenTree};
 
 /// Tries to parse a valid group from the given token stream iterator, returning
 /// the group if successful.
