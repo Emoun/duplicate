@@ -17,7 +17,7 @@ exclude = [".travis.yml", "rustfmt.toml", ".gitignore", "README.md", "CHANGELOG.
 proc-macro = true
 
 [dependencies]
-proc-macro-error = "1.0"
+proc-macro-error = "=1.0.3"
 
 [dev-dependencies]
 macrotest = "1.0.2"

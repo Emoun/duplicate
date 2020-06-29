@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed a build issue when using v1.0.3 of `proc_macro_error`. See [#11](https://github.com/Emoun/duplicate/issues/11).
+- Fixed a build issue when using version 1.0.3 of `proc_macro_error`. See [#11](https://github.com/Emoun/duplicate/issues/11).
+
+### Changed
+
+- The `proc_macro_error` dependency is fixed to version 1.0.3 to avoid potential breaking changes with future updates to that crate. 
 
 ## [0.2.4] - 2020-06-23
 
