@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed a build issue when using v1.0.3 of `proc_macro_error`. See [#11](https://github.com/Emoun/duplicate/issues/11).
+
 ## [0.2.4] - 2020-06-23
 
 ### Fixed
