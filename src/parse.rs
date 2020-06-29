@@ -3,7 +3,6 @@ use crate::{
 	substitute::{substitute, Substitution},
 };
 use proc_macro::{token_stream::IntoIter, Span, TokenStream, TokenTree};
-use proc_macro_error::*;
 use std::{
 	collections::{HashMap, HashSet},
 	iter::Peekable,
