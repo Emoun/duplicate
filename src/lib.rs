@@ -502,7 +502,7 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 use proc_macro::{Span, TokenStream};
-use proc_macro_error::*;
+use proc_macro_error::{abort, proc_macro_error};
 
 mod parse;
 mod parse_utils;
