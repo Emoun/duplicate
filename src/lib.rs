@@ -502,6 +502,7 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 use proc_macro::{Span, TokenStream};
+#[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
 
 mod parse;
@@ -734,13 +735,13 @@ use substitute::*;
 /// assert!(!42i8.is_negative());
 /// ```
 #[proc_macro_attribute]
-#[proc_macro_error]
+#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 {
 	match duplicate_impl(attr, item)
 	{
 		Ok(result) => result,
-		Err(err) => abort!(err.0, err.1),
+		Err(err) => abort(err.0, err.1),
 	}
 }
 
@@ -752,4 +753,15 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 	let subs = parse_attr(attr, Span::call_site())?;
 	let result = substitute(item, subs);
 	Ok(result)
+}
+
+#[cfg(feature = "pretty_errors")]
+fn abort(span: Span, msg: String) -> !
+{
+	abort!(span, msg)
+}
+#[cfg(not(feature = "pretty_errors"))]
+fn abort(span: Span, msg: String) -> !
+{
+	panic!(msg);
 }

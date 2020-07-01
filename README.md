@@ -11,8 +11,19 @@ This document is meant for contributors to the crate. The documentation is hoste
 
 # Testing
 
-This crate uses [macrotest](https://crates.io/crates/macrotest) for testing expansion. 
-Therefore, before running tests the nightly compiler must be installed together with `rustfmt` and `cargo-expand`:
+Tests are divided into the following groups:
+
+- [`no_features`](#anch-tests-no-features):
+Tests the minimal API of the crate with no features enabled. 
+Most other tests also run these tests.
+
+- [`default_features`](#anch-tests-default-features): 
+Tests which features are defaults but does not test any functionality.
+
+#### Setup
+
+This crate uses [macrotest](https://crates.io/crates/macrotest) for testing expansions. 
+Therefore, before running these tests the nightly compiler must be installed together with `rustfmt` and `cargo-expand`:
 
 ```
 cargo install cargo-expand
@@ -20,10 +31,25 @@ rustup toolchain install nightly
 rustup component add rustfmt
 ```
 
-The tests can then be run as any other tests:
+The tests can then be run normally using `cargo test`.
+
+
+#### <a name="anch-tests-no-features"></a>`no-features`
+
+Test the basic API of the crate without any features enabled:
 
 ```
-cargo test
+cargo test no_features:: --no-default-features
+```
+
+#### <a name="anch-tests-default-features"></a>`default_features`
+
+Test that the correct features are enabled by default.
+This is to ensure a change doesn't change which features are on by default.
+However, this does not test the features themselves:
+
+```
+cargo test default_features::
 ```
 
 # Formatting

@@ -1,7 +1,8 @@
-const EXPAND_DIR: &'static str = "tests/expand";
+const EXPAND_DIR: &'static str = "tests/no_features";
 const TESTING_DIR: &'static str = "testing";
+
 #[test]
-pub fn pass()
+pub fn test_all_expansions()
 {
 	let _ = std::fs::remove_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR);
 	std::fs::create_dir_all(EXPAND_DIR.to_owned() + "/" + TESTING_DIR).unwrap();
