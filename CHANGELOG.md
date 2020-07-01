@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New default feature named `pretty_errors`. When it is enabled, errors are more detailed and helpful.
+
+### Changed
+
+- Errors are now less detailed and helpful unless the `pretty_errors` feature is enabled.
+- The dependence on the `proc_macro_error` crate is now optional and used by the `pretty_errors` feature.
+
 ## [0.2.5] - 2020-06-29
 
 ### Fixed
