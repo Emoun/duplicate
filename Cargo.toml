@@ -18,14 +18,19 @@ proc-macro = true
 
 [dependencies]
 proc-macro-error = { version = "=1.0.3", optional = true }
+convert_case = { version = "=0.4.0", optional = true }
 
 [dev-dependencies]
-macrotest = "1.0.2"
+macrotest = "1.0.3"
 doc-comment = "0.3.3"
 
 [features]
-default = ["pretty_errors"]
+default = ["pretty_errors", "auto_mods"]
 pretty_errors = ["proc-macro-error"]
+auto_mods = ["convert_case"]
+
+[package.metadata.docs.rs]
+all-features = true
 
 [badges]
 maintenance = { status = "experimental" }

@@ -146,6 +146,25 @@ impl Substitution
 			Err(())
 		}
 	}
+
+	#[cfg(feature = "auto_mods")]
+	/// If this substitution simply produces an identifier and nothing else,
+	/// then that identifier is returned, otherwise None
+	pub fn substitutes_identifier(&self) -> Option<Ident>
+	{
+		if self.sub.len() == 1
+		{
+			if let SubType::Token(token) = &self.sub[0]
+			{
+				let mut iter = token.clone().into_iter();
+				if let TokenTree::Ident(ident) = iter.next()?
+				{
+					return Some(ident);
+				}
+			}
+		}
+		None
+	}
 }
 
 /// Duplicates the given token stream, substituting any identifiers found.

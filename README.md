@@ -11,15 +11,6 @@ This document is meant for contributors to the crate. The documentation is hoste
 
 # Testing
 
-Tests are divided into the following groups:
-
-- [`no_features`](#anch-tests-no-features):
-Tests the minimal API of the crate with no features enabled. 
-Most other tests also run these tests.
-
-- [`default_features`](#anch-tests-default-features): 
-Tests which features are defaults but does not test any functionality.
-
 #### Setup
 
 This crate uses [macrotest](https://crates.io/crates/macrotest) for testing expansions. 
@@ -31,27 +22,38 @@ rustup toolchain install nightly
 rustup component add rustfmt
 ```
 
-The tests can then be run normally using `cargo test`.
+The tests can then be run normally using `cargo test` as seen below.
 
+Tests are divided into the following groups:
 
-#### <a name="anch-tests-no-features"></a>`no-features`
-
-Test the basic API of the crate without any features enabled:
+- `no_features`:
+Tests the minimal API of the crate with no features enabled. 
 
 ```
-cargo test no_features:: --no-default-features
+cargo test --no-default-features -- --skip default_features::
 ```
 
-#### <a name="anch-tests-default-features"></a>`default_features`
-
+- `default_features`: 
 Test that the correct features are enabled by default.
 This is to ensure a change doesn't change which features are on by default.
-However, this does not test the features themselves:
+However, this does not test the features themselves.
 
 ```
 cargo test default_features::
 ```
 
+- `features`:
+Tests any combination of features. After `--features` add a comma separated list of features to test:
+
+```
+cargo test --features auto_mods,pretty_errors -- --skip default_features::
+```
+
+- `documentation`:
+Tests code in the documentation. Even though some of the other test groups might test some of the documentaion code, they are not guaranteed to run all tests. E.g. the test of the cargo readme file (`cargo-readme.md` are only run when this command is used.
+```
+cargo test --doc --all-features
+```
 # Formatting
 
 We use `rustfmt` to manage the formatting of this crate's code.

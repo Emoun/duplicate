@@ -1,5 +1,3 @@
-#![cfg(doctest)]
-use doc_comment::doctest;
-
-// Tests the crate readme file's Rust examples.
-doctest!("../cargo-readme.md");
+#[cfg(doctest)]
+// Tests the crate readme-file's Rust examples.
+doc_comment::doctest!("../cargo-readme.md");

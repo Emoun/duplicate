@@ -501,17 +501,22 @@
 //! As an example, libraries that have two or more structs/traits with similar
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
-use proc_macro::{Span, TokenStream};
-#[cfg(feature = "pretty_errors")]
-use proc_macro_error::{abort, proc_macro_error};
 
 mod parse;
 mod parse_utils;
 mod substitute;
 // Tests the crate readme file's Rust examples.
+#[cfg(feature = "auto_mods")]
+mod auto_mods;
 mod crate_readme_test;
 
+use crate::parse_utils::{next_token, parse_group};
+#[cfg(feature = "auto_mods")]
+use auto_mods::*;
 use parse::*;
+use proc_macro::{Ident, Span, TokenStream, TokenTree};
+#[cfg(feature = "pretty_errors")]
+use proc_macro_error::{abort, proc_macro_error};
 use substitute::*;
 
 /// Duplicates the item it is applied to and substitutes specific identifiers
@@ -741,7 +746,7 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 	match duplicate_impl(attr, item)
 	{
 		Ok(result) => result,
-		Err(err) => abort(err.0, err.1),
+		Err(err) => abort(err.0, &err.1),
 	}
 }
 
@@ -750,18 +755,68 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// `allow_short`: If true, accepts short syntax
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (Span, String)>
 {
-	let subs = parse_attr(attr, Span::call_site())?;
+	#[allow(unused_mut)]
+	let mut subs = parse_attr(attr, Span::call_site())?;
+
+	if let Some(module) = get_module_name(&item)
+	{
+		if !subs[0].contains_key(&module.to_string())
+		{
+			#[cfg(not(feature = "auto_mods"))]
+			{
+				abort(
+					module.span(),
+					"Duplicating the module '{}' without giving each duplicate a unique \
+					 name.\nHint: Enable the 'duplicate' crate's '{}' feature to automatically \
+					 generate unique module names",
+				);
+			}
+			#[cfg(feature = "auto_mods")]
+			{
+				unambiguate_module(module, &mut subs);
+			}
+		}
+	}
 	let result = substitute(item, subs);
 	Ok(result)
 }
 
-#[cfg(feature = "pretty_errors")]
-fn abort(span: Span, msg: String) -> !
+/// Terminates with an error and produces the given message.
+///
+/// The `pretty_errors` feature can be enabled, the span is shown
+/// with the error message.
+fn abort(#[allow(unused_variables)] span: Span, msg: &str) -> !
 {
-	abort!(span, msg)
+	#[cfg(feature = "pretty_errors")]
+	{
+		abort!(span, msg);
+	}
+	#[cfg(not(feature = "pretty_errors"))]
+	{
+		panic!(format!("{}", msg));
+	}
 }
-#[cfg(not(feature = "pretty_errors"))]
-fn abort(_: Span, msg: String) -> !
+
+/// Extract the name of the module assuming the given item is a module
+/// declaration.
+///
+/// If not, returns None.
+fn get_module_name(item: &TokenStream) -> Option<Ident>
 {
-	panic!(msg);
+	let mut iter = item.clone().into_iter();
+
+	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, "").unwrap_or(None)?
+	{
+		if mod_keyword.to_string() == "mod"
+		{
+			if let TokenTree::Ident(module) = next_token(&mut iter, "").unwrap_or(None)?
+			{
+				if parse_group(&mut iter, Span::call_site(), "").is_ok()
+				{
+					return Some(module);
+				}
+			}
+		}
+	}
+	None
 }

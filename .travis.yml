@@ -13,10 +13,15 @@ before_script:
 script:
 # Test no_features
 - cargo build --verbose --no-default-features
-- "cargo test --verbose no_features:: --no-default-features"
+- "cargo test --no-default-features -- --skip default_features::"
 # Test default_features
 - cargo build --verbose
 - "cargo test --verbose default_features::"
+# Test auto_mods features
+- cargo build --verbose --features auto_mods
+- "cargo test --features auto_mods -- --skip default_features::"
+# Test documentation code
+- cargo test --doc --all-features
 - cargo doc
 
 matrix:
