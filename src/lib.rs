@@ -761,7 +761,7 @@ fn abort(span: Span, msg: String) -> !
 	abort!(span, msg)
 }
 #[cfg(not(feature = "pretty_errors"))]
-fn abort(span: Span, msg: String) -> !
+fn abort(_: Span, msg: String) -> !
 {
 	panic!(msg);
 }
