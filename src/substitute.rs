@@ -1,6 +1,5 @@
-use crate::parse_utils::*;
+use crate::{parse_utils::*, SubstitutionGroup};
 use proc_macro::{Delimiter, Group, Ident, TokenStream, TokenTree};
-use std::collections::HashMap;
 
 /// The types of sub-substitutions composing a single substitution.
 #[derive(Debug)]
@@ -159,7 +158,11 @@ impl Substitution
 				let mut iter = token.clone().into_iter();
 				if let TokenTree::Ident(ident) = iter.next()?
 				{
-					return Some(ident);
+					// Ensure there are no more tokens, since we only allow 1 identifier.
+					if iter.next().is_none()
+					{
+						return Some(ident);
+					}
 				}
 			}
 		}
@@ -168,7 +171,7 @@ impl Substitution
 }
 
 /// Duplicates the given token stream, substituting any identifiers found.
-pub fn substitute(item: TokenStream, groups: Vec<HashMap<String, Substitution>>) -> TokenStream
+pub(crate) fn substitute(item: TokenStream, groups: Vec<SubstitutionGroup>) -> TokenStream
 {
 	let mut result = TokenStream::new();
 
@@ -188,7 +191,7 @@ pub fn substitute(item: TokenStream, groups: Vec<HashMap<String, Substitution>>)
 /// identifiers and substitutes them, returning the resulting token stream.
 fn substitute_next_token(
 	tree: &mut impl Iterator<Item = TokenTree>,
-	substitutions: &HashMap<String, Substitution>,
+	substitutions: &SubstitutionGroup,
 ) -> Option<TokenStream>
 {
 	let mut result = None;
@@ -196,7 +199,7 @@ fn substitute_next_token(
 	{
 		Some(TokenTree::Ident(ident)) =>
 		{
-			if let Some(subst) = substitutions.get(&ident.to_string())
+			if let Some(subst) = substitutions.substitution_of(&ident.to_string())
 			{
 				let stream = if subst.arg_count > 0
 				{

@@ -502,12 +502,12 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 
+#[cfg(feature = "auto_mods")]
+mod auto_mods;
 mod parse;
 mod parse_utils;
 mod substitute;
 // Tests the crate readme file's Rust examples.
-#[cfg(feature = "auto_mods")]
-mod auto_mods;
 mod crate_readme_test;
 
 use crate::parse_utils::{next_token, parse_group};
@@ -517,6 +517,7 @@ use parse::*;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
+use std::collections::HashMap;
 use substitute::*;
 
 /// Duplicates the item it is applied to and substitutes specific identifiers
@@ -760,7 +761,7 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 
 	if let Some(module) = get_module_name(&item)
 	{
-		if !subs[0].contains_key(&module.to_string())
+		if subs[0].substitution_of(&module.to_string()).is_none()
 		{
 			#[cfg(not(feature = "auto_mods"))]
 			{
@@ -819,4 +820,62 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 		}
 	}
 	None
+}
+
+struct SubstitutionGroup
+{
+	substitutions: HashMap<String, Substitution>,
+	#[cfg(feature = "auto_mods")]
+	identifier_order: Vec<String>,
+}
+
+impl SubstitutionGroup
+{
+	fn new() -> Self
+	{
+		Self {
+			substitutions: HashMap::new(),
+			#[cfg(feature = "auto_mods")]
+			identifier_order: Vec::new(),
+		}
+	}
+
+	fn add_substitution(&mut self, ident: Ident, subst: Substitution)
+		-> Result<(), (Span, String)>
+	{
+		if self
+			.substitutions
+			.insert(ident.to_string(), subst)
+			.is_some()
+		{
+			Err((
+				ident.span(),
+				"Substitution identifier assigned mutiple substitutions".into(),
+			))
+		}
+		else
+		{
+			#[cfg(feature = "auto_mods")]
+			{
+				self.identifier_order.push(ident.to_string());
+			}
+			Ok(())
+		}
+	}
+
+	fn substitution_of(&self, ident: &String) -> Option<&Substitution>
+	{
+		self.substitutions.get(ident)
+	}
+
+	fn identifiers(&self) -> impl Iterator<Item = &String>
+	{
+		self.substitutions.keys()
+	}
+
+	#[cfg(feature = "auto_mods")]
+	fn identifiers_ordered(&self) -> impl Iterator<Item = &String>
+	{
+		self.identifier_order.iter()
+	}
 }

@@ -1,19 +1,17 @@
 use crate::{
 	parse_utils::*,
 	substitute::{substitute, Substitution},
+	SubstitutionGroup,
 };
-use proc_macro::{token_stream::IntoIter, Span, TokenStream, TokenTree};
-use std::{
-	collections::{HashMap, HashSet},
-	iter::Peekable,
-};
+use proc_macro::{token_stream::IntoIter, Ident, Span, TokenStream, TokenTree};
+use std::{collections::HashSet, iter::Peekable};
 
 /// Parses the attribute part of an invocation of duplicate, returning
 /// all the substitutions that should be made to the item.
-pub fn parse_attr(
+pub(crate) fn parse_attr(
 	attr: TokenStream,
 	stream_span: Span,
-) -> Result<Vec<HashMap<String, Substitution>>, (Span, String)>
+) -> Result<Vec<SubstitutionGroup>, (Span, String)>
 {
 	if identify_syntax(attr.clone(), stream_span)?
 	{
@@ -26,7 +24,7 @@ pub fn parse_attr(
 
 		for _ in 0..substitutions[0].2.len()
 		{
-			reorder.push(HashMap::new());
+			reorder.push(SubstitutionGroup::new());
 		}
 
 		for (ident, args, subs) in substitutions
@@ -36,7 +34,10 @@ pub fn parse_attr(
 				let substitution = Substitution::new(&args, sub.into_iter());
 				if let Ok(substitution) = substitution
 				{
-					reorder[idx].insert(ident.clone(), substitution);
+					reorder[idx].add_substitution(
+						Ident::new(&ident.clone(), Span::call_site()),
+						substitution,
+					)?;
 				}
 				else
 				{
@@ -75,9 +76,7 @@ fn identify_syntax(attr: TokenStream, stream_span: Span) -> Result<bool, (Span, 
 
 /// Validates that the attribute part of a duplicate invocation uses
 /// the verbose syntax, and returns all the substitutions that should be made.
-fn validate_verbose_attr(
-	attr: TokenStream,
-) -> Result<Vec<HashMap<String, Substitution>>, (Span, String)>
+fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (Span, String)>
 {
 	if attr.is_empty()
 	{
@@ -105,7 +104,7 @@ fn validate_verbose_attr(
 					sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
 					if None == substitution_ids
 					{
-						substitution_ids = Some(sub_groups[0].keys().cloned().collect())
+						substitution_ids = Some(sub_groups[0].identifiers().cloned().collect())
 					}
 				},
 			}
@@ -123,7 +122,7 @@ fn validate_verbose_attr(
 fn extract_verbose_substitutions(
 	tree: TokenTree,
 	existing: &Option<HashSet<String>>,
-) -> Result<HashMap<String, Substitution>, (Span, String)>
+) -> Result<SubstitutionGroup, (Span, String)>
 {
 	// Must get span now, before it's corrupted.
 	let tree_span = tree.span();
@@ -139,7 +138,7 @@ fn extract_verbose_substitutions(
 		return Err((group.span(), "No substitution groups found.".into()));
 	}
 
-	let mut substitutions = HashMap::new();
+	let mut substitutions = SubstitutionGroup::new();
 	let mut stream = group.stream().into_iter();
 
 	loop
@@ -155,12 +154,10 @@ fn extract_verbose_substitutions(
 					 code to be inserted instead of any occurrence of the identifier.",
 				)?;
 
-				let ident_string = ident.to_string();
-
 				// Check have found the same as existing
 				if let Some(idents) = existing
 				{
-					if !idents.contains(&ident_string)
+					if !idents.contains(&ident.to_string())
 					{
 						return Err((
 							ident.span(),
@@ -170,7 +167,7 @@ fn extract_verbose_substitutions(
 						));
 					}
 				}
-				substitutions.insert(ident_string, Substitution::new_simple(sub.stream()));
+				substitutions.add_substitution(ident, Substitution::new_simple(sub.stream()))?;
 			}
 			else
 			{
@@ -185,7 +182,7 @@ fn extract_verbose_substitutions(
 			// Check no substitution idents are missing.
 			if let Some(idents) = existing
 			{
-				let sub_idents = substitutions.keys().cloned().collect();
+				let sub_idents = substitutions.identifiers().cloned().collect();
 				let diff: Vec<_> = idents.difference(&sub_idents).collect();
 
 				if diff.len() > 0
