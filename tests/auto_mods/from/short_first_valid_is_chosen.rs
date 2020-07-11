@@ -1,7 +1,7 @@
 use duplicate::duplicate;
 // The following tests all ensure that if multiple substitution identifiers
 // can be used to postfix the module, then the first is chosen.
-// We have many test here to ensure that if the choise of identifier to use
+// We have many test here to ensure that if the choice of identifier to use
 // is pseudo-random, most likely at least one of them will fail.
 
 // Test 1

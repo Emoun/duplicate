@@ -102,4 +102,20 @@ impl<'a> ExpansionTester<'a>
 			}
 		})
 	}
+
+	/// Generatesan action that duplicates the file for the short and verbose
+	/// syntaxes. Therefore, each file is duplicated twices with 'short_' and
+	/// 'verbose_' prefixed.s
+	pub fn duplicate_for_syntaxes() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	{
+		fn expect_for_short_and_verbose(file: OsString) -> Vec<OsString>
+		{
+			let mut short = OsString::from("short_");
+			short.push(&file);
+			let mut verbose = OsString::from("verbose_");
+			verbose.push(file);
+			vec![short, verbose]
+		}
+		Self::duplicate(expect_for_short_and_verbose)
+	}
 }
