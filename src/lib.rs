@@ -504,11 +504,10 @@
 
 #[cfg(feature = "auto_mods")]
 mod auto_mods;
+mod crate_readme_test;
 mod parse;
 mod parse_utils;
 mod substitute;
-// Tests the crate readme file's Rust examples.
-mod crate_readme_test;
 
 use crate::parse_utils::{next_token, parse_group};
 #[cfg(feature = "auto_mods")]
@@ -765,16 +764,19 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 		{
 			#[cfg(not(feature = "auto_mods"))]
 			{
-				abort(
+				return Err((
 					module.span(),
-					"Duplicating the module '{}' without giving each duplicate a unique \
-					 name.\nHint: Enable the 'duplicate' crate's '{}' feature to automatically \
-					 generate unique module names",
-				);
+					format!(
+						"Duplicating the module '{}' without giving each duplicate a unique \
+						 name.\nHint: Enable the 'duplicate' crate's 'auto_mods' feature to \
+						 automatically generate unique module names.",
+						module.to_string()
+					),
+				));
 			}
 			#[cfg(feature = "auto_mods")]
 			{
-				unambiguate_module(module, &mut subs);
+				unambiguate_module(module, &mut subs)?;
 			}
 		}
 	}
