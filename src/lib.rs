@@ -491,6 +491,80 @@
 //! invocations use short syntax but produce verbose syntax for the outer-most
 //! invocation.
 //!
+//! # Crate Features
+//!
+//! ### `auto_mods` [Default]: Implicit Module Name Disambiguation
+//!
+//! It is sometime beneficial to apply `duplicate` to a module, such that all
+//! its contents are duplicated at once. However, this will always need the
+//! resulting modules to have unique names to avoid the compiler issueing an
+//! error. Without `auto_mods`, module names must be substituted manually. With
+//! `auto_mods`, the following will compile successfully:
+//!
+//! ```
+//! # #[cfg(feature="auto_mods")] // Ensure test is only run if feature is on
+//! # {
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   int_type  max_value;
+//!   [ u8 ]    [ 255 ];
+//!   [ u16 ]   [ 65_535 ];
+//!   [ u32 ]   [ 4_294_967_295 ];
+//! )]
+//! mod module {
+//! # // There is a bug with rustdoc, where these traits cannot
+//! # // be imported using 'use super::*'.
+//! # // This is a workaround
+//! # pub trait IsNegative { fn is_negative(&self) -> bool;}
+//! # pub trait IsMax {fn is_max(&self) -> bool;}
+//!   impl IsMax for int_type {
+//!     fn is_max(&self) -> bool {
+//!       *self == max_value
+//!     }
+//!   }
+//!   impl IsNegative for int_type {
+//!     fn is_negative(&self) -> bool {
+//!       false
+//!     }
+//!   }
+//! }
+//! # // This is part of the workaround for not being able to import
+//! # // these traits in each module. We rename them so that they
+//! # // don't clash with each other.
+//! # use module_u_8::IsNegative as trait1;
+//! # use module_u_8::IsMax as trait2;
+//! # use module_u_16::IsNegative as trait3;
+//! # use module_u_16::IsMax as trait4;
+//! # use module_u_32::IsNegative as trait5;
+//! # use module_u_32::IsMax as trait6;
+//!
+//! assert!(!42u8.is_max());
+//! assert!(!42u16.is_max());
+//! assert!(!42u32.is_max());
+//! assert!(!42u8.is_negative());
+//! assert!(!42u16.is_negative());
+//! assert!(!42u32.is_negative());
+//! # }
+//! ```
+//!
+//! This works because the three duplicate modules get assigned unique names:
+//! `module_u_8`, `module_u_16`, and `module_u_32`. This only works if a
+//! substitution identifier can be found, where all its substitutions only
+//! produce a single identifier and nothing else. Those identifiers are then
+//! converted to snake case, and postfixed to the original module's name,
+//! e.g., `module  + u8 = module_u_8`. The first suitable substitution
+//! identifier is chosen.
+//!
+//! ### `pretty_errors` [Default]: More detailed error messages.
+//!
+//! Enabling this feature will make error messages indicate exactly where the
+//! offending code is. Without this feature, error messages will not provide
+//! detailed location indicators for errors.
+//!
+//! This feature is has no effect on expansion. Therefore, libraries are advised
+//! to keep this feature off (note that it's enabled by default)
+//! to avoid forcing it on users.
+//!
 //! # Disclaimer
 //!
 //! This crate does not try to justify or condone the usage of code duplication

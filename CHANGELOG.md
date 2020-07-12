@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- New default feature named `pretty_errors`. When it is enabled, errors are more detailed and helpful.
+- New default feature named `pretty_errors`. When enabled, errors are more detailed and helpful.
+- New Default feature named `auto_mods`. When enabled, if the `duplicate` attribute macro is applied to a module and its name is not a substitution identifier, the expansion will attempt to make each duplicate's module name unique by adding a postfix to the original module name based on a suitable substitution identifier. See the documentation for more details. See also [#7](https://github.com/Emoun/duplicate/issues/7).
 
 ### Changed
 
