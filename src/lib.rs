@@ -493,16 +493,18 @@
 //!
 //! # Crate Features
 //!
-//! ### `auto_mods` [Default]: Implicit Module Name Disambiguation
+//! ### `module_disambiguation`
+//! __Implicit Module Name Disambiguation__ (Enabled by default)
 //!
 //! It is sometime beneficial to apply `duplicate` to a module, such that all
 //! its contents are duplicated at once. However, this will always need the
 //! resulting modules to have unique names to avoid the compiler issueing an
-//! error. Without `auto_mods`, module names must be substituted manually. With
-//! `auto_mods`, the following will compile successfully:
+//! error. Without `module_disambiguation`, module names must be substituted
+//! manually. With `module_disambiguation`, the following will compile
+//! successfully:
 //!
 //! ```
-//! # #[cfg(feature="auto_mods")] // Ensure test is only run if feature is on
+//! # #[cfg(feature="module_disambiguation")] // Ensure test is only run if feature is on
 //! # {
 //! # use duplicate::duplicate;
 //! #[duplicate(
@@ -555,7 +557,8 @@
 //! e.g., `module  + u8 = module_u_8`. The first suitable substitution
 //! identifier is chosen.
 //!
-//! ### `pretty_errors` [Default]: More detailed error messages.
+//! ### `pretty_errors`
+//! __More Detailed Error Messages__ (Enabled by default)
 //!
 //! Enabling this feature will make error messages indicate exactly where the
 //! offending code is. Without this feature, error messages will not provide
@@ -576,16 +579,16 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 
-#[cfg(feature = "auto_mods")]
-mod auto_mods;
 mod crate_readme_test;
+#[cfg(feature = "module_disambiguation")]
+mod module_disambiguation;
 mod parse;
 mod parse_utils;
 mod substitute;
 
 use crate::parse_utils::{next_token, parse_group};
-#[cfg(feature = "auto_mods")]
-use auto_mods::*;
+#[cfg(feature = "module_disambiguation")]
+use module_disambiguation::*;
 use parse::*;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 #[cfg(feature = "pretty_errors")]
@@ -836,19 +839,19 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 	{
 		if subs[0].substitution_of(&module.to_string()).is_none()
 		{
-			#[cfg(not(feature = "auto_mods"))]
+			#[cfg(not(feature = "module_disambiguation"))]
 			{
 				return Err((
 					module.span(),
 					format!(
 						"Duplicating the module '{}' without giving each duplicate a unique \
-						 name.\nHint: Enable the 'duplicate' crate's 'auto_mods' feature to \
-						 automatically generate unique module names.",
+						 name.\nHint: Enable the 'duplicate' crate's 'module_disambiguation' \
+						 feature to automatically generate unique module names.",
 						module.to_string()
 					),
 				));
 			}
-			#[cfg(feature = "auto_mods")]
+			#[cfg(feature = "module_disambiguation")]
 			{
 				unambiguate_module(module, &mut subs)?;
 			}
@@ -901,7 +904,7 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 struct SubstitutionGroup
 {
 	substitutions: HashMap<String, Substitution>,
-	#[cfg(feature = "auto_mods")]
+	#[cfg(feature = "module_disambiguation")]
 	identifier_order: Vec<String>,
 }
 
@@ -911,7 +914,7 @@ impl SubstitutionGroup
 	{
 		Self {
 			substitutions: HashMap::new(),
-			#[cfg(feature = "auto_mods")]
+			#[cfg(feature = "module_disambiguation")]
 			identifier_order: Vec::new(),
 		}
 	}
@@ -931,7 +934,7 @@ impl SubstitutionGroup
 		}
 		else
 		{
-			#[cfg(feature = "auto_mods")]
+			#[cfg(feature = "module_disambiguation")]
 			{
 				self.identifier_order.push(ident.to_string());
 			}
@@ -949,7 +952,7 @@ impl SubstitutionGroup
 		self.substitutions.keys()
 	}
 
-	#[cfg(feature = "auto_mods")]
+	#[cfg(feature = "module_disambiguation")]
 	fn identifiers_ordered(&self) -> impl Iterator<Item = &String>
 	{
 		self.identifier_order.iter()

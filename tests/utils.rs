@@ -2,10 +2,11 @@ use std::{ffi::OsString, fs::DirEntry, path::Path};
 
 /// Whether the `pretty_errors` feature is enabled.
 pub const FEATURE_PRETTY_ERRORS: bool = cfg!(feature = "pretty_errors");
-/// Whether the `auto_mods` feature is enabled.
-pub const FEATURE_AUTO_MODS: bool = cfg!(feature = "auto_mods");
+/// Whether the `module_disambiguation` feature is enabled.
+pub const FEATURE_MODULE_DISAMBIGUATION: bool = cfg!(feature = "module_disambiguation");
 /// The number of enabled features.
-pub const NR_FEATURES: usize = 0 + FEATURE_PRETTY_ERRORS as usize + FEATURE_AUTO_MODS as usize;
+pub const NR_FEATURES: usize =
+	0 + FEATURE_PRETTY_ERRORS as usize + FEATURE_MODULE_DISAMBIGUATION as usize;
 /// A list of the enabled features.
 const FEATURES: [&'static str; NR_FEATURES] = get_features();
 
@@ -18,9 +19,9 @@ const fn get_features() -> [&'static str; NR_FEATURES]
 	{
 		features[0] = "pretty_errors";
 	}
-	#[cfg(feature = "auto_mods")]
+	#[cfg(feature = "module_disambiguation")]
 	{
-		features[FEATURE_PRETTY_ERRORS as usize] = "auto_mods";
+		features[FEATURE_PRETTY_ERRORS as usize] = "module_disambiguation";
 	}
 	features
 }

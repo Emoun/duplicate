@@ -146,7 +146,7 @@ impl Substitution
 		}
 	}
 
-	#[cfg(feature = "auto_mods")]
+	#[cfg(feature = "module_disambiguation")]
 	/// If this substitution simply produces an identifier and nothing else,
 	/// then that identifier is returned, otherwise None
 	pub fn substitutes_identifier(&self) -> Option<Ident>

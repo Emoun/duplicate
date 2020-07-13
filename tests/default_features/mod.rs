@@ -39,4 +39,4 @@ macro_rules! default_features {
 }
 
 default_features!(pretty_errors "pretty_errors");
-default_features!(auto_mods "auto_mods");
+default_features!(module_disambiguation "module_disambiguation");

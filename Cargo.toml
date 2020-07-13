@@ -25,9 +25,9 @@ macrotest = "1.0.4"
 doc-comment = "0.3.3"
 
 [features]
-default = ["pretty_errors", "auto_mods"]
+default = ["pretty_errors", "module_disambiguation"]
 pretty_errors = ["proc-macro-error"]
-auto_mods = ["convert_case"]
+module_disambiguation = ["convert_case"]
 
 [package.metadata.docs.rs]
 all-features = true

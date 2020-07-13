@@ -17,15 +17,15 @@ script:
 # Test default_features
 - cargo build --verbose
 - "cargo test --verbose default_features::"
-# Test auto_mods features
-- cargo build --verbose --features auto_mods
-- "cargo test --features auto_mods -- --skip default_features::"
+# Test module_disambiguation features
+- cargo build --verbose --features module_disambiguation
+- "cargo test --features module_disambiguation -- --skip default_features::"
 # Test pretty_errors features
 - cargo build --verbose --features pretty_errors
 - "cargo test --features pretty_errors -- --skip default_features::"
 # Test all features
-- cargo build --verbose --features pretty_errors,auto_mods
-- "cargo test --features pretty_errors,auto_mods -- --skip default_features::"
+- cargo build --verbose --features pretty_errors,module_disambiguation
+- "cargo test --features pretty_errors,module_disambiguation -- --skip default_features::"
 # Test documentation code
 - cargo test --doc --all-features
 - cargo doc

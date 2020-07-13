@@ -46,7 +46,7 @@ cargo test default_features::
 Tests any combination of features. After `--features` add a comma separated list of features to test:
 
 ```
-cargo test --features auto_mods,pretty_errors -- --skip default_features::
+cargo test --features module_disambiguation,pretty_errors -- --skip default_features::
 ```
 
 - `documentation`:
