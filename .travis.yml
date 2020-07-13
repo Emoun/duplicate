@@ -20,6 +20,12 @@ script:
 # Test auto_mods features
 - cargo build --verbose --features auto_mods
 - "cargo test --features auto_mods -- --skip default_features::"
+# Test pretty_errors features
+- cargo build --verbose --features pretty_errors
+- "cargo test --features pretty_errors -- --skip default_features::"
+# Test all features
+- cargo build --verbose --features pretty_errors,auto_mods
+- "cargo test --features pretty_errors,auto_mods -- --skip default_features::"
 # Test documentation code
 - cargo test --doc --all-features
 - cargo doc

@@ -1,5 +1,30 @@
 use std::{ffi::OsString, fs::DirEntry, path::Path};
 
+/// Whether the `pretty_errors` feature is enabled.
+pub const FEATURE_PRETTY_ERRORS: bool = cfg!(feature = "pretty_errors");
+/// Whether the `auto_mods` feature is enabled.
+pub const FEATURE_AUTO_MODS: bool = cfg!(feature = "auto_mods");
+/// The number of enabled features.
+pub const NR_FEATURES: usize = 0 + FEATURE_PRETTY_ERRORS as usize + FEATURE_AUTO_MODS as usize;
+/// A list of the enabled features.
+const FEATURES: [&'static str; NR_FEATURES] = get_features();
+
+/// Returns a list of enabled features.
+const fn get_features() -> [&'static str; NR_FEATURES]
+{
+	#[allow(unused_mut)]
+	let mut features: [&'static str; NR_FEATURES] = [""; NR_FEATURES];
+	#[cfg(feature = "pretty_errors")]
+	{
+		features[0] = "pretty_errors";
+	}
+	#[cfg(feature = "auto_mods")]
+	{
+		features[FEATURE_PRETTY_ERRORS as usize] = "auto_mods";
+	}
+	features
+}
+
 /// Manages the setting up and running of expansion tests using macrotest
 ///
 /// Expansion test live in a home directory. This directory has a single
@@ -72,7 +97,21 @@ impl<'a> ExpansionTester<'a>
 			}
 		}
 
-		macrotest::expand_without_refresh(testing_dir + "/*.rs");
+		// Prepare feature list for expansion testing
+		let mut args: Vec<&str> = Vec::new();
+		let mut features = String::new();
+		if NR_FEATURES > 0
+		{
+			args.push("--features");
+			for f in FEATURES.iter()
+			{
+				features.push_str(f);
+				features.push(',');
+			}
+			args.push(features.as_str());
+		}
+
+		macrotest::expand_without_refresh_args(testing_dir + "/*.rs", args.as_slice());
 	}
 
 	/// Generates an action that simply copies the file given to the testing
