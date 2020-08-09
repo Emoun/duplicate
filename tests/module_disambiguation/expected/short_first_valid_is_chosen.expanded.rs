@@ -1,4 +1,3 @@
-use duplicate::duplicate;
 mod module_some_name_11 {
     pub struct SomeName11(u8);
 }

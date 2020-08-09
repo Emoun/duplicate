@@ -1,4 +1,9 @@
-use std::{ffi::OsString, fs::DirEntry, path::Path};
+use std::{
+	ffi::OsString,
+	fs::{DirEntry, File},
+	io::{BufRead, BufReader, Write},
+	path::Path,
+};
 
 /// Whether the `pretty_errors` feature is enabled.
 pub const FEATURE_PRETTY_ERRORS: bool = cfg!(feature = "pretty_errors");
@@ -45,7 +50,7 @@ pub struct ExpansionTester<'a>
 	/// The subdirectory (of the home) where test files may be put
 	testing_dir: &'a str,
 	/// Source sub-directory, and how ea
-	source_dirs: Vec<(&'a str, Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>)>,
+	source_dirs: Vec<(&'a str, Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>)>,
 }
 
 impl<'a> ExpansionTester<'a>
@@ -61,11 +66,15 @@ impl<'a> ExpansionTester<'a>
 	}
 
 	/// Add a source directory under the home directory,
-	/// with an action that produces files in the testing directory
+	/// with a list of actions that produce files in the testing directory
 	/// based on each file in the source directory.
-	pub fn add_source_dir(&mut self, dir: &'a str, action: Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>)
+	pub fn add_source_dir(
+		&mut self,
+		dir: &'a str,
+		actions: Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>,
+	)
 	{
-		self.source_dirs.push((dir, action));
+		self.source_dirs.push((dir, actions));
 	}
 
 	/// Executes the tests including first setting up the testing directory.
@@ -79,7 +88,7 @@ impl<'a> ExpansionTester<'a>
 		std::fs::create_dir_all(&testing_dir).unwrap();
 
 		// For each source dir, execute action of each file
-		for (source_dir, action) in self.source_dirs.iter()
+		for (source_dir, actions) in self.source_dirs.iter()
 		{
 			let source_dir_path = self.dir.to_owned() + "/" + source_dir;
 			if let Ok(files) = std::fs::read_dir(&source_dir_path)
@@ -88,7 +97,10 @@ impl<'a> ExpansionTester<'a>
 				{
 					if let Ok(file) = file
 					{
-						action(&file, &testing_dir);
+						for action in actions.iter()
+						{
+							action(&file, &testing_dir);
+						}
 					}
 					else
 					{
@@ -115,47 +127,126 @@ impl<'a> ExpansionTester<'a>
 		macrotest::expand_without_refresh_args(testing_dir + "/*.rs", args.as_slice());
 	}
 
-	/// Generates an action that simply copies the file given to the testing
-	/// directory.
-	pub fn copy() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	/// Generates an action that copies the file given to the testing
+	/// directory with the given prefix added to its name.
+	pub fn copy_with_prefix(prefix: &str) -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
 	{
-		Box::new(|file, destination| {
+		let prefix = OsString::from(prefix);
+		Box::new(move |file, destination| {
 			let mut destination_file = destination.as_ref().to_path_buf();
-			destination_file.push(file.file_name());
+			let mut file_name = prefix.clone();
+			file_name.push(file.file_name());
+			destination_file.push(file_name);
 			std::fs::copy(&file.path(), &destination_file).unwrap();
 		})
 	}
 
-	/// Generates an action that duplicates the file given a number of times.
-	/// The given function mus take the original file name and produce
-	/// all the file names that must be duplicated in the testing directory.
-	pub fn duplicate(
-		duplicates: fn(OsString) -> Vec<OsString>,
-	) -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	/// Generates an action that simply copies the file given to the testing
+	/// directory.
+	pub fn copy() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
 	{
-		Box::new(move |file, destination| {
-			for duplicate in duplicates(file.file_name()).into_iter()
-			{
-				let mut destination_file = destination.as_ref().to_path_buf();
-				destination_file.push(duplicate);
-				std::fs::copy(&file.path(), &destination_file).unwrap();
-			}
-		})
+		Self::copy_with_prefix("")
 	}
 
-	/// Generatesan action that duplicates the file for the short and verbose
-	/// syntaxes. Therefore, each file is duplicated twices with 'short_' and
-	/// 'verbose_' prefixed.s
-	pub fn duplicate_for_syntaxes() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	/// Generates an action that creates two versions of the given file in the
+	/// testing directory. The source file must use the 'duplicate' attribute
+	/// macro, where:
+	/// - The invocation must starts with `#[duplicate::duplicate(` on a the
+	///   first line
+	/// (with nothing else). Notice that you must not import the attribute but
+	/// use its full path.
+	/// - Then the body of the invocation. Both syntaxes are allowed.
+	/// - Then the `)]` on its own line, followed immediately by
+	///   `//duplicate_end`.
+	/// I.e. `)]//duplicate_end`
+	/// - Then the item to be duplicated, followed on the next line by
+	///   `//item_end` on
+	/// its own.
+	///
+	/// This action will them generate 2 versions of this file. The first is
+	/// almost identical the original, but the second will change the invocation
+	/// to instead use `duplicate_inline`. It uses the exact rules specified
+	/// above to correctly change the code, so any small deviation from the
+	/// above rules might result in an error. The name of the first version is
+	/// the same as the original and the second version is prefixed with
+	/// 'inline_'
+	///
+	/// ### Example
+	/// Original file (`test.rs`):
+	/// ```
+	/// #[duplicate::duplicate(
+	///   name;
+	///   [SomeName];
+	/// )]//duplicate_end
+	/// pub struct name();
+	/// //item_end
+	/// ```
+	/// First version (`test.expanded.rs`):
+	/// ```
+	/// #[duplicate::duplicate(
+	///   name;
+	///   [SomeName];
+	/// )]
+	/// pub struct name();
+	/// ```
+	/// Second version (`inline_test.expanded.rs`):
+	/// duplicate::duplicate_inline{
+	///   [
+	///     name;
+	///     [SomeName];
+	///   ]
+	///   pub struct name();
+	/// }
+	/// ```
+	pub fn duplicate_for_inline() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
 	{
-		fn expect_for_short_and_verbose(file: OsString) -> Vec<OsString>
-		{
-			let mut short = OsString::from("short_");
-			short.push(&file);
-			let mut verbose = OsString::from("verbose_");
-			verbose.push(file);
-			vec![short, verbose]
-		}
-		Self::duplicate(expect_for_short_and_verbose)
+		Box::new(|file, destination| {
+			let mut inline_file_name = OsString::from("inline_");
+			inline_file_name.push(file.file_name());
+
+			let mut dest_file_path = destination.as_ref().to_path_buf();
+			let mut dest_inline_file_path = destination.as_ref().to_path_buf();
+
+			dest_file_path.push(file.file_name());
+			dest_inline_file_path.push(inline_file_name);
+
+			let mut dest_file = File::create(dest_file_path).unwrap();
+			let mut dest_inline_file = File::create(dest_inline_file_path).unwrap();
+
+			for line in BufReader::new(File::open(file.path()).unwrap()).lines()
+			{
+				let line = line.unwrap();
+				let line = line.trim();
+
+				match line
+				{
+					"#[duplicate::duplicate(" =>
+					{
+						dest_file
+							.write_all("#[duplicate::duplicate(".as_bytes())
+							.unwrap();
+						dest_inline_file
+							.write_all("duplicate::duplicate_inline!{\n[".as_bytes())
+							.unwrap();
+					},
+					")]//duplicate_end" =>
+					{
+						dest_file.write_all(")]".as_bytes()).unwrap();
+						dest_inline_file.write_all("]".as_bytes()).unwrap();
+					},
+					"//item_end" =>
+					{
+						dest_inline_file.write_all("}".as_bytes()).unwrap();
+					},
+					_ =>
+					{
+						dest_file.write_all(line.as_bytes()).unwrap();
+						dest_inline_file.write_all(line.as_bytes()).unwrap();
+					},
+				}
+				dest_file.write_all("\n".as_bytes()).unwrap();
+				dest_inline_file.write_all("\n".as_bytes()).unwrap();
+			}
+		})
 	}
 }

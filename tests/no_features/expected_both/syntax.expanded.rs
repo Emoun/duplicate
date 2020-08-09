@@ -1,4 +1,3 @@
-use duplicate::duplicate;
 pub struct SomeName();
 pub struct SomeName(SomeMember);
 pub struct SomeName(SomeMember);

@@ -1,7 +1,5 @@
-use duplicate::duplicate;
-
 // Tests module names are postfixed from substitution identifier
-#[duplicate(
+#[duplicate::duplicate(
 	[
 		name [SomeName11]
 	]
@@ -11,14 +9,15 @@ use duplicate::duplicate;
 	[
 		name [SomeName13]
 	]
-)]
+)]//duplicate_end
 mod module {
 	pub struct name();
 }
+//item_end
 
 // Tests if multiple identifiers are given, the first identifier who's substitutions
 // all are simple identifiers (and nothing else) is chosen
-#[duplicate(
+#[duplicate::duplicate(
 	[
 		member_type	[Vec<()>]
 		name 		[SomeName21]
@@ -31,14 +30,15 @@ mod module {
 		member_type	[u64]
 		name 		[SomeName23]
 	]
-)]
+)]//duplicate_end
 mod module {
 	pub struct name(member_type);
 }
+//item_end
 
 // Tests if multiple identifiers are given, the first identifier who's substitutions
 // all are simple identifiers is chosen
-#[duplicate(
+#[duplicate::duplicate(
 	[
 		member_type		[u8]
 		filler_ident	[SomeIdent]
@@ -54,7 +54,8 @@ mod module {
 		filler_ident	[Not<An::Identifier>]
 		name 			[SomeName33]
 	]
-)]
+)]//duplicate_end
 mod module {
 	pub struct name(member_type);
 }
+//item_end

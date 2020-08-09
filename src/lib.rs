@@ -593,7 +593,7 @@ use parse::*;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::FromIterator};
 use substitute::*;
 
 /// Duplicates the item it is applied to and substitutes specific identifiers
@@ -821,6 +821,22 @@ use substitute::*;
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 {
 	match duplicate_impl(attr, item)
+	{
+		Ok(result) => result,
+		Err(err) => abort(err.0, &err.1),
+	}
+}
+
+#[proc_macro]
+pub fn duplicate_inline(stream: TokenStream) -> TokenStream
+{
+	let mut iter = stream.into_iter();
+
+	let invocation = parse_group(&mut iter, Span::call_site(), "Missing invocation.").unwrap();
+	let invocation_body = invocation.stream();
+	let rest = TokenStream::from_iter(iter);
+
+	match duplicate_impl(invocation_body, rest)
 	{
 		Ok(result) => result,
 		Err(err) => abort(err.0, &err.1),
