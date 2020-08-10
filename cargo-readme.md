@@ -1,13 +1,14 @@
 duplicate
 =============================
 
-Attribute macro for code duplication with substitution.
+Crate for easy code duplication with substitution.
 
 ## Motivation
 
 If you find yourself in need of copying a block of code and then making some small changes to fit the new use case, this crate is for you.
 
 The `duplicate` attribute macro will duplicate an item any number of times while inserting custom code in the designated places in each duplicate.
+The `duplicate_inline` function-like procedural macro will do the same for any code you give it.
 
 For an in-depth explanation of the syntax and features, [see the documentation](https://docs.rs/duplicate).
 

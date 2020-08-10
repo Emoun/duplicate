@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `duplicate_inline`: Function-like procedural macro version of `duplicate`. 
+Has the same functionality, but can be used in other contexts and can duplicate any number of items. 
+See also [#6](https://github.com/Emoun/duplicate/issues/6).
+
 ## [0.2.6] - 2020-07-13
 
 ### Added

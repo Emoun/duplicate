@@ -5,7 +5,8 @@
 //!
 //! The only major difference between the two is where you can use them.
 //! Therefore, the following section presents how to use
-//! [`duplicate`] only. Refer to [`duplicate_inline`]'s documentation for how it defers from what is specified below.
+//! [`duplicate`] only. Refer to [`duplicate_inline`]'s documentation for how it
+//! defers from what is specified below.
 //!
 //! [`duplicate`]: attr.duplicate.html
 //! [`duplicate_inline`]: macro.duplicate_inline.html
@@ -839,13 +840,16 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// for different code snippets in each duplicate.
 ///
 /// This is a function-like procedural macro version of [`duplicate`].
-/// It's functionality is the exact same, and they share the same invocation syntax(es).
-/// The only difference is that `duplicate_inline` doesn't only duplicate the following item, but duplicate all code given to it after the invocation block.
+/// It's functionality is the exact same, and they share the same invocation
+/// syntax(es). The only difference is that `duplicate_inline` doesn't only
+/// duplicate the following item, but duplicate all code given to it after the
+/// invocation block.
 ///
 /// ## Usage
 ///
-/// A call to `duplicate_inline` must start with a `[]`, `{}`, or `()` containing
-/// the duplication invocation. Everything after that will then be duplicated according to the invocation.
+/// A call to `duplicate_inline` must start with a `[]`, `{}`, or `()`
+/// containing the duplication invocation. Everything after that will then be
+/// duplicated according to the invocation.
 ///
 /// Given the following `duplicate_inline` call:
 /// ```
@@ -907,17 +911,20 @@ pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 {
 	let mut iter = stream.into_iter();
 
-	let result = match parse_group(&mut iter, Span::call_site(), "Missing invocation.") {
-		Ok(invocation) => {
+	let result = match parse_group(&mut iter, Span::call_site(), "Missing invocation.")
+	{
+		Ok(invocation) =>
+		{
 			let invocation_body = invocation.stream();
 			let rest = TokenStream::from_iter(iter);
-			
+
 			duplicate_impl(invocation_body, rest)
-		}
-		Err(err) => Err(err)
+		},
+		Err(err) => Err(err),
 	};
-	
-	match result {
+
+	match result
+	{
 		Ok(result) => result,
 		Err(err) => abort(err.0, &err.1),
 	}
