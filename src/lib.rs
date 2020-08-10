@@ -1,6 +1,14 @@
-//! This crate provides the `duplicate` attribute macro for
-//! code duplication with substitution.
+//! This crate provides macros for easy code duplication with substitution:
 //!
+//! - [`duplicate`]: Attribute macro.
+//! - [`duplicate_inline`]: Function-like procedural macro.
+//!
+//! The only major difference between the two is where you can use them.
+//! Therefore, the following section presents how to use
+//! [`duplicate`] only. Refer to [`duplicate_inline`]'s documentation for how it defers from what is specified below.
+//!
+//! [`duplicate`]: attr.duplicate.html
+//! [`duplicate_inline`]: macro.duplicate_inline.html
 //! # Usage
 //!
 //! Say you have a trait with a method `is_max` that should return `true` if the
@@ -827,17 +835,89 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 	}
 }
 
+/// Duplicates the given code and substitutes specific identifiers
+/// for different code snippets in each duplicate.
+///
+/// This is a function-like procedural macro version of [`duplicate`].
+/// It's functionality is the exact same, and they share the same invocation syntax(es).
+/// The only difference is that `duplicate_inline` doesn't only duplicate the following item, but duplicate all code given to it after the invocation block.
+///
+/// ## Usage
+///
+/// A call to `duplicate_inline` must start with a `[]`, `{}`, or `()` containing
+/// the duplication invocation. Everything after that will then be duplicated according to the invocation.
+///
+/// Given the following `duplicate_inline` call:
+/// ```
+/// use duplicate::duplicate_inline;
+/// # trait IsMax {
+/// #   fn is_max(&self) -> bool;
+/// # }
+///
+/// duplicate_inline!{
+///   [
+///     // Some duplication invocation
+/// #     int_type  max_value;
+/// #     [ u8 ]    [ 255 ];
+/// #     [ u16 ]   [ 65_535 ];
+/// #     [ u32 ]   [ 4_294_967_295 ];
+///   ]
+///   // Some code to duplicate
+/// #   impl IsMax for int_type {
+/// #     fn is_max(&self) -> bool {
+/// #       *self == max_value
+/// #     }
+/// #   }
+/// }
+/// # assert!(!42u8.is_max());
+/// # assert!(!42u16.is_max());
+/// # assert!(!42u32.is_max());
+/// ```
+/// It is equivalent to the following invocation using [`duplicate`]:
+/// ```
+/// use duplicate::duplicate;
+/// # trait IsMax {
+/// #   fn is_max(&self) -> bool;
+/// # }
+///
+/// #[duplicate(
+///   // Some duplication invocation
+/// #   int_type  max_value;
+/// #   [ u8 ]    [ 255 ];
+/// #   [ u16 ]   [ 65_535 ];
+/// #   [ u32 ]   [ 4_294_967_295 ];
+/// )]
+/// // Some code to duplicate
+/// # impl IsMax for int_type {
+/// #   fn is_max(&self) -> bool {
+/// #     *self == max_value
+/// #   }
+/// # }
+/// # assert!(!42u8.is_max());
+/// # assert!(!42u16.is_max());
+/// # assert!(!42u32.is_max());
+/// ```
+///
+/// For more details on about invocations and features see [`duplicate`].
+///
+/// [`duplicate`]: attr.duplicate.html
 #[proc_macro]
+#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 {
 	let mut iter = stream.into_iter();
 
-	let invocation = parse_group(&mut iter, Span::call_site(), "Missing invocation.").unwrap();
-	let invocation_body = invocation.stream();
-	let rest = TokenStream::from_iter(iter);
-
-	match duplicate_impl(invocation_body, rest)
-	{
+	let result = match parse_group(&mut iter, Span::call_site(), "Missing invocation.") {
+		Ok(invocation) => {
+			let invocation_body = invocation.stream();
+			let rest = TokenStream::from_iter(iter);
+			
+			duplicate_impl(invocation_body, rest)
+		}
+		Err(err) => Err(err)
+	};
+	
+	match result {
 		Ok(result) => result,
 		Err(err) => abort(err.0, &err.1),
 	}
