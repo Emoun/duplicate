@@ -54,11 +54,11 @@ fn identify_syntax(attr: TokenStream, stream_span: Span) -> Result<bool, (Span, 
 {
 	if let Some(token) = next_token(&mut attr.into_iter(), "Could not identify syntax type.")?
 	{
-		match token
+		match &token
 		{
 			TokenTree::Group(_) => Ok(true),
 			TokenTree::Ident(_) => Ok(false),
-			TokenTree::Punct(p) if is_nested_invocation(&p) => Ok(true),
+			TokenTree::Punct(p) if is_nested_invocation(p) => Ok(true),
 			_ =>
 			{
 				Err((
@@ -91,9 +91,9 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (S
 	{
 		if let Some(tree) = next_token(&mut iter, "Expected substitution group.")?
 		{
-			match tree
+			match &tree
 			{
-				TokenTree::Punct(p) if is_nested_invocation(&p) =>
+				TokenTree::Punct(p) if is_nested_invocation(p) =>
 				{
 					let nested_duplicated = invoke_nested(&mut iter, p.span())?;
 					let subs = validate_verbose_attr(nested_duplicated)?;
@@ -243,7 +243,7 @@ fn validate_short_get_identifiers(
 		if let Some(next_token) = next_token(&mut iter, "Expected substitution identifier or ';'.")?
 		{
 			span = next_token.span();
-			match next_token
+			match &next_token
 			{
 				TokenTree::Ident(ident) =>
 				{
@@ -284,7 +284,7 @@ fn validate_short_get_identifier_arguments(
 						result.push(ident.to_string());
 						if let Some(token) = arg_iter.next()
 						{
-							match token
+							match &token
 							{
 								TokenTree::Punct(punct) if punct_is_char(&punct, ',') => (),
 								_ => return Err((token.span(), "Expected ','.".into())),

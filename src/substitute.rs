@@ -67,7 +67,7 @@ impl Substitution
 		{
 			match token
 			{
-				TokenTree::Ident(ident) if find_argument(&ident).is_some() =>
+				TokenTree::Ident(ref ident) if find_argument(&ident).is_some() =>
 				{
 					if let Some(sub_stream) = saved_tokens.take()
 					{
