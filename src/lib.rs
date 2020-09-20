@@ -588,6 +588,8 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 
+extern crate proc_macro;
+
 mod crate_readme_test;
 #[cfg(feature = "module_disambiguation")]
 mod module_disambiguation;
