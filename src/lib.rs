@@ -970,7 +970,8 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 ///
 /// The `pretty_errors` feature can be enabled, the span is shown
 /// with the error message.
-fn abort(#[allow(unused_variables)] span: Span, msg: &str) -> !
+#[allow(unused_variables)]
+fn abort(span: Span, msg: &str) -> !
 {
 	#[cfg(feature = "pretty_errors")]
 	{
