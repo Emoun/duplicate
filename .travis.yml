@@ -1,33 +1,43 @@
 language: rust
 rust:
-- 1.45.0
+- 1.34.2
+- 1.42.0
 - stable
 - beta
 - nightly
 
 before_script:
-- cargo install cargo-expand
+# Can only use stable rust to build cargo-expand because it doesn't build on 1.34
+- rustup install stable
+- cargo +stable install cargo-expand
+# Install dependencies of 'macrotest'
 - rustup toolchain install nightly
-- rustup component add rustfmt
+- rustup component add --toolchain nightly rustfmt
 
 script:
 # Test no_features
-- cargo build --verbose --no-default-features
-- "cargo test --no-default-features -- --skip default_features::"
+- "cargo test --tests --no-default-features -- --skip default_features::"
 # Test default_features
-- cargo build --verbose
-- "cargo test --verbose default_features::"
+- if [ $TRAVIS_RUST_VERSION != "1.34.2" ]; then
+    cargo test --tests --verbose default_features::;
+  fi
 # Test module_disambiguation features
-- cargo build --verbose --features module_disambiguation
-- "cargo test --features module_disambiguation -- --skip default_features::"
+- if [ $TRAVIS_RUST_VERSION != "1.34.2" ]; then
+    cargo test --tests --features module_disambiguation -- --skip default_features::;
+  fi
 # Test pretty_errors features
-- cargo build --verbose --features pretty_errors
-- "cargo test --features pretty_errors -- --skip default_features::"
+- "cargo test --tests --features pretty_errors -- --skip default_features::"
 # Test all features
-- cargo build --verbose --features pretty_errors,module_disambiguation
-- "cargo test --features pretty_errors,module_disambiguation -- --skip default_features::"
+- FEATURES=pretty_errors
+- if [ $TRAVIS_RUST_VERSION != "1.34.2" ]; then FEATURES=$FEATURES,module_disambiguation; fi
+- "cargo test --tests --features $FEATURES -- --skip default_features::"
 # Test documentation code
-- cargo test --doc --all-features
+# We only use >1.34 because there is a bug in 'cargo test'
+# that means doctests always use all default features.
+# This will cause 'module_disambiguation' doctests to fail on 1.34
+- if [ $TRAVIS_RUST_VERSION != "1.34.2" ]; then
+    cargo test --doc --all-features;
+  fi
 - cargo doc
 
 matrix:

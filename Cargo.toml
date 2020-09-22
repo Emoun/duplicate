@@ -18,11 +18,11 @@ proc-macro = true
 
 [dependencies]
 proc-macro-error = { version = "=1.0.4", optional = true }
-convert_case = { version = "=0.4.0", optional = true }
+convert_case = { version = "=0.4.0", optional = true } # Must use '=' because of a lack of MSRV
 
 [dev-dependencies]
-macrotest = "1.0.4"
-doc-comment = "0.3.3"
+macrotest = "=1.0.5" # Must use '=' because of a lack of MSRV
+doc-comment = "=0.3.3" # Must use '=' because of a lack of MSRV
 
 [features]
 default = ["pretty_errors", "module_disambiguation"]
