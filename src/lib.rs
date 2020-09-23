@@ -875,9 +875,14 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// #     }
 /// #   }
 /// }
-/// # assert!(!42u8.is_max());
-/// # assert!(!42u16.is_max());
-/// # assert!(!42u32.is_max());
+/// # // We use an explicit 'main' function to ensure the previous
+/// # // 'duplicate_inline' call doesn't get treated as a statement,
+/// # // which illegal before rust 1.45.
+/// # fn main() {
+/// #   assert!(!42u8.is_max());
+/// #   assert!(!42u16.is_max());
+/// #   assert!(!42u32.is_max());
+/// # }
 /// ```
 /// It is equivalent to the following invocation using [`duplicate`]:
 /// ```
