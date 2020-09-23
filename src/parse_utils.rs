@@ -88,19 +88,16 @@ pub fn next_token(
 {
 	match iter.next()
 	{
-		Some(TokenTree::Group(group)) if group.delimiter() == Delimiter::None =>
+		Some(TokenTree::Group(ref group)) if group.delimiter() == Delimiter::None =>
 		{
 			let mut in_group = group.stream().into_iter();
 			let result = in_group.next();
-			match in_group.next()
+			match (in_group.next(), in_group.next())
 			{
-				None => Ok(result),
+				(None, _) => Ok(result),
 				// If ends with ';' and nothing else, was a statement including
 				// only 1 token, so allow.
-				Some(TokenTree::Punct(p)) if is_semicolon(&p) && in_group.next().is_none() =>
-				{
-					Ok(result)
-				},
+				(Some(TokenTree::Punct(ref p)), None) if is_semicolon(&p) => Ok(result),
 				_ => Err((group.span(), err_msg.into())),
 			}
 		},
