@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- New _Minimum Supported Rust Version_ (MSRV) Policy. Briefly, MSRV is 1.34 but may be increased by enabling features. See [#18](https://github.com/Emoun/duplicate/issues/18#issuecomment-697554595).
+- The crate's readme now contains section on MSRV policy.
+
 ## [0.2.8] - 2020-09-24
 
 ## [0.2.7] - 2020-08-10
