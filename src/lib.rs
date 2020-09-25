@@ -443,10 +443,7 @@
 //! The verbose syntax deals better with both cases as it will grow horizontally
 //! instead of vertically.
 //!
-//! The verbose syntax does not currently support parameterized substitution.
-//! It is planned to be added to this syntax in a future update.
-//!
-//! The verbose syntax does offer nested invocation. The syntax is exactly the
+//! The verbose syntax also offers nested invocation. The syntax is exactly the
 //! same, but since there is no initial substitution identifier list, nested
 //! calls can be used anywhere (though still not inside substitution groups.)
 //! The previous `IsNegative` nested invocation example can be written as
@@ -689,8 +686,6 @@ use substitute::*;
 ///
 /// # Parameterized Substitutoin
 ///
-/// _Only available for the short syntax._
-///
 /// ```
 /// use duplicate::duplicate;
 /// struct VecWrap<T>(Vec<T>);
@@ -724,6 +719,32 @@ use substitute::*;
 /// substitutions. When using the identifier, argument code snippets must be
 /// given in a comma separated list, with each argument being inclosed in
 /// brackets (`()`, `[]`, or `{}`).
+///
+/// Parameterized substitution is also available for the verbose syntax:
+///
+/// ```
+/// # use duplicate::duplicate;
+/// # struct VecWrap<T>(Vec<T>);
+/// impl<T> VecWrap<T> {
+///   #[duplicate(
+///     [
+///       method                     [get]
+///       reference(lifetime, type)  [& 'lifetime type]
+///     ]
+///     [
+///       method                     [get_mut]
+///       reference(lifetime, type)  [& 'lifetime mut type]
+///     ]
+///   )]
+///   pub fn method<'a>(self: reference([a],[Self]),idx: usize) -> Option<reference([a],[T])> {
+///     self.0.method(idx)
+///   }
+/// }
+/// # let mut vec = VecWrap(vec![1,2,3]);
+/// # assert_eq!(*vec.get(0).unwrap(), 1);
+/// # *vec.get_mut(1).unwrap() = 5;
+/// # assert_eq!(*vec.get(1).unwrap(), 5);
+/// ```
 ///
 /// # Nested Invocation
 /// ```
@@ -1061,6 +1082,12 @@ impl SubstitutionGroup
 	fn identifiers(&self) -> impl Iterator<Item = &String>
 	{
 		self.substitutions.keys()
+	}
+
+	fn identifiers_with_args(&self) -> impl Iterator<Item = (&String, usize)>
+	{
+		self.identifiers()
+			.map(move |ident| (ident, self.substitution_of(ident).unwrap().argument_count()))
 	}
 
 	#[cfg(feature = "module_disambiguation")]

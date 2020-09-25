@@ -168,6 +168,11 @@ impl Substitution
 		}
 		None
 	}
+
+	pub fn argument_count(&self) -> usize
+	{
+		self.arg_count
+	}
 }
 
 /// Duplicates the given token stream, substituting any identifiers found.

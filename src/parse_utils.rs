@@ -104,3 +104,34 @@ pub fn next_token(
 		token => Ok(token),
 	}
 }
+
+/// Extracts a list of arguments from the given group.
+/// The list is expected to be of comma-separated identifiers.
+pub fn extract_argument_list(group: &Group) -> Result<Vec<String>, (Span, String)>
+{
+	let mut result = Vec::new();
+	let mut arg_iter = group.stream().into_iter();
+	while let Some(token) = arg_iter.next()
+	{
+		if let TokenTree::Ident(ident) = token
+		{
+			result.push(ident.to_string());
+			if let Some(token) = arg_iter.next()
+			{
+				match &token
+				{
+					TokenTree::Punct(punct) if punct_is_char(&punct, ',') => (),
+					_ => return Err((token.span(), "Expected ','.".into())),
+				}
+			}
+		}
+		else
+		{
+			return Err((
+				token.span(),
+				"Expected substitution identifier argument as identifier.".into(),
+			));
+		}
+	}
+	Ok(result)
+}

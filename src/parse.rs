@@ -104,7 +104,12 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (S
 					sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
 					if None == substitution_ids
 					{
-						substitution_ids = Some(sub_groups[0].identifiers().cloned().collect())
+						substitution_ids = Some(
+							sub_groups[0]
+								.identifiers_with_args()
+								.map(|(ident, count)| (ident.clone(), count))
+								.collect(),
+						)
 					}
 				},
 			}
@@ -121,7 +126,7 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (S
 /// Extracts a substitution group in the verbose syntax.
 fn extract_verbose_substitutions(
 	tree: TokenTree,
-	existing: &Option<HashSet<String>>,
+	existing: &Option<HashSet<(String, usize)>>,
 ) -> Result<SubstitutionGroup, (Span, String)>
 {
 	// Must get span now, before it's corrupted.
@@ -139,35 +144,48 @@ fn extract_verbose_substitutions(
 	}
 
 	let mut substitutions = SubstitutionGroup::new();
-	let mut stream = group.stream().into_iter();
+	let mut stream = group.stream().into_iter().peekable();
 
 	loop
 	{
-		if let Some(ident) = next_token(&mut stream, "Epected substitution identifier.")?
+		if let Some(ident) = next_token(&mut stream, "Expected substitution identifier.")?
 		{
 			if let TokenTree::Ident(ident) = ident
 			{
-				let sub = parse_group(
+				let group_1 = parse_group(
 					&mut stream,
 					ident.span(),
 					"Hint: A substitution identifier should be followed by a group containing the \
 					 code to be inserted instead of any occurrence of the identifier.",
 				)?;
 
-				// Check have found the same as existing
-				if let Some(idents) = existing
+				let group_2 = if let Some(TokenTree::Group(group)) = stream.peek()
 				{
-					if !idents.contains(&ident.to_string())
+					if check_delimiter(&group).is_ok()
 					{
-						return Err((
-							ident.span(),
-							"Unfamiliar substitution identifier. '{}' is not present in previous \
-							 substitution groups."
-								.into(),
-						));
+						stream.next()
+					}
+					else
+					{
+						None
 					}
 				}
-				substitutions.add_substitution(ident, Substitution::new_simple(sub.stream()))?;
+				else
+				{
+					None
+				};
+
+				let substitution = if let Some(TokenTree::Group(sub)) = group_2
+				{
+					let args = extract_argument_list(&group_1)?;
+					Substitution::new(&args, sub.stream().into_iter()).unwrap()
+				}
+				else
+				{
+					Substitution::new_simple(group_1.stream())
+				};
+
+				substitutions.add_substitution(ident, substitution)?;
 			}
 			else
 			{
@@ -179,23 +197,36 @@ fn extract_verbose_substitutions(
 		}
 		else
 		{
-			// Check no substitution idents are missing.
+			// Check no substitution idents are missing or with wrong argument counts.
 			if let Some(idents) = existing
 			{
-				let sub_idents = substitutions.identifiers().cloned().collect();
-				let diff: Vec<_> = idents.difference(&sub_idents).collect();
+				let sub_idents: HashSet<_> = substitutions.identifiers_with_args().collect();
+				// Map idents to string reference so we can use HashSet::difference
+				let idents = idents
+					.iter()
+					.map(|(ident, count)| (ident, count.clone()))
+					.collect();
+				let diff: Vec<_> = sub_idents.difference(&idents).collect();
 
 				if diff.len() > 0
 				{
-					let mut msg: String = "Missing substitutions. Previous substitutions groups \
-					                       had the following identifiers not present in this \
-					                       group: "
+					let mut msg: String = "Invalid substitutions.\nThe following identifiers were \
+					                       not found in previous substitution groups or had \
+					                       different arguments:\n"
 						.into();
 					for ident in diff
 					{
-						msg.push_str("'");
-						msg.push_str(&ident.to_string());
-						msg.push_str("' ");
+						msg.push_str(&ident.0.to_string());
+						msg.push_str("(");
+						if ident.1 > 0
+						{
+							msg.push_str("_");
+						}
+						for _ in 1..(ident.1)
+						{
+							msg.push_str(",_")
+						}
+						msg.push_str(")");
 					}
 
 					return Err((tree_span, msg));
@@ -269,42 +300,20 @@ fn validate_short_get_identifier_arguments(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 ) -> Result<Vec<String>, (Span, String)>
 {
-	let mut result = Vec::new();
 	if let Some(token) = iter.peek()
 	{
 		if let TokenTree::Group(group) = token
 		{
 			if check_delimiter(group).is_ok()
 			{
-				let mut arg_iter = group.stream().into_iter();
-				while let Some(token) = arg_iter.next()
-				{
-					if let TokenTree::Ident(ident) = token
-					{
-						result.push(ident.to_string());
-						if let Some(token) = arg_iter.next()
-						{
-							match &token
-							{
-								TokenTree::Punct(punct) if punct_is_char(&punct, ',') => (),
-								_ => return Err((token.span(), "Expected ','.".into())),
-							}
-						}
-					}
-					else
-					{
-						return Err((
-							token.span(),
-							"Expected substitution identifier argument as identifier.".into(),
-						));
-					}
-				}
+				let result = extract_argument_list(group)?;
 				// Make sure to consume the group
 				let _ = iter.next();
+				return Ok(result);
 			}
 		}
 	}
-	Ok(result)
+	Ok(Vec::new())
 }
 
 /// Gets all substitution groups in the short syntax and inserts
