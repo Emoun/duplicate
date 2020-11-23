@@ -1,0 +1,123 @@
+name: Rust
+
+on:
+  push: 
+    branches: '**'
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+-**'
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (${{matrix.rust-version}})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust-version: ['1.42.0', stable, beta, nightly]
+        features-non-34: [module_disambiguation]
+        include:
+          - rust-version: '1.34.2'
+            features-non-34: ""
+    env:
+      FEATURES: pretty_errors,${{matrix.feature-non-34}}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Environment
+        run: |
+          # Can only use stable rust to build cargo-expand because it doesn't build on 1.34
+          cargo +stable install cargo-expand
+          # Install dependencies of 'macrotest'
+          rustup toolchain install nightly
+          rustup component add --toolchain nightly rustfmt
+          # Set the rust version to use for this build
+          rustup default ${{ matrix.rust-version }}
+      - name: Test no_features
+        run: "cargo test --tests --no-default-features -- --skip default_features::"
+      - name: Test default_features
+        if: matrix.rust-version != '1.34.2'
+        run: "cargo test --tests --verbose default_features::"
+      - name: Test module_disambiguation
+        if: matrix.rust-version != '1.34.2'
+        run: "cargo test --tests --features module_disambiguation -- --skip default_features::"
+      - name: Test pretty_errors
+        run: "cargo test --tests --features pretty_errors -- --skip default_features::"
+      - run: echo $features
+      - name: Test All Features
+        run: "cargo test --tests --features $FEATURES -- --skip default_features::"
+      - name: Test Documentation Code
+        # We only use >1.34 because there is a bug in 'cargo test'
+        # that means doctests always use all default features.
+        # This will cause 'module_disambiguation' doctests to fail on 1.34
+        if: matrix.rust-version != '1.34.2'
+        run: cargo test --doc --all-features
+      - name: Build Documentation
+        run: cargo doc
+      
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust-version: [nightly-2020-06-23]
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        run: |
+          rustup toolchain install ${{matrix.rust-version}}
+          rustup component add --toolchain ${{matrix.rust-version}} rustfmt
+      - name: Check
+        run: cargo +${{matrix.rust-version}} fmt -- --check
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [test, rustfmt]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get Version
+        run: echo GIT_VERSION=$(git describe --tags) >> $GITHUB_ENV
+      - name: Prepare Git
+        run: |
+          git config user.email "github@github.com"
+          git config user.name "Github Actions"
+          git checkout -b master
+          # Use throw-away branch so we don't push the changes to origin
+          git checkout -b deploy_branch
+      - name: Prepare Crate
+        run: |
+          # Update cargo version, 
+          sed -i "s/version = \"0.0.0\"/version = \"$GIT_VERSION\"/" Cargo.toml
+          git add Cargo.toml
+          # Insert changes to cargo readme
+          sed -n "/^## \[Unreleased]/,/^## \[[0-9]/p;/^## \[[0-9]/q" CHANGELOG.md | head -n -1 | tail -n +2 > CHANGES.txt
+          sed -e '/\[changelog_body]/{' -e 'r CHANGES.txt' -e 'd' -e '}' -i cargo-readme.md
+          git add cargo-readme.md
+          rm CHANGES.txt
+          # Commit changes so cargo doesn't complain about dirty repo
+          git commit -m "Deploy changes."
+          # Package crate to ensure it works without issue
+          cargo package
+      - name: Cargo Login
+        env:
+          CRATES_IO_DEPLOY_TOKEN: ${{ secrets.CRATES_IO_DEPLOY_TOKEN }}
+        run: cargo login "$CRATES_IO_DEPLOY_TOKEN"
+      - name: Publish
+        run: cargo publish --dry-run
+      - name: Update Changelog
+        run: |
+          # Back to master to clean the changes made during packaging.
+          git checkout master
+          # Update changelog
+          DATE=$(date +%Y-%m-%d)
+          sed -i "s/## \[Unreleased]/## \[Unreleased]\n\n## \[$GIT_VERSION] - $DATE/" CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "Reset CHANGELOG after v$GIT_VERSION."
+          # Push changes to repo
+          git push origin master

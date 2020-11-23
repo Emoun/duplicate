@@ -1,7 +1,7 @@
 duplicate
 =============================
 
-[![Build Status](https://api.travis-ci.org/Emoun/duplicate.svg?branch=master)](https://travis-ci.org/Emoun/duplicate)
+[![Rust](https://github.com/Emoun/duplicate/workflows/Rust/badge.svg)](https://github.com/Emoun/duplicate/actions)
 [![Latest Version](https://img.shields.io/crates/v/duplicate.svg)](https://crates.io/crates/duplicate)
 [![Rust Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/duplicate)
 
@@ -63,11 +63,11 @@ To have cargo format the code for you, you must have the nightly compiler instal
 cargo +nightly fmt
 ```
 
-Travis-CI will check the formatting and fail if it isn't formatted correctly.
+The CI/CD will check the formatting and fail if it isn't formatted correctly.
 
 # Release Deployment
 
-Deployment of new versions of this crate is managed by Travis-CI using git tags. 
+Deployment of new versions of this crate is managed by CI/CD using git tags. 
 To trigger a new release, simply push a tag to the repository containing only the version number:
 
 ```
@@ -77,11 +77,11 @@ git push --tags
 
 We do not use the `Cargo.toml` to manage the versioning of this crate.
 The version given in it should not be changed! 
-It must remain as `0.0.0` so Travis-CI can correctly change it for every release.
+It must remain as `0.0.0` so CI/CD can correctly modify it for every release.
 
-Travis will also reset the change log as part of the release, so do not change the `## [Unreleased]` line nor add an entry for new releases yourself.
+CI/CD will also reset the change log as part of the release, so do not change the `## [Unreleased]` line nor add an entry for new releases yourself.
 
-Travis will also add the new release's changes to `cargo-readme.md` under the `Changelog` section. So do not touch that either.
+CI/CD will also add the new release's changes to `cargo-readme.md` under the `Changelog` section. So do not touch that either.
 
 #### License
 
