@@ -1,0 +1,84 @@
+name: Rust
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    name: Test (${{matrix.rust-version}})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust-version: ['1.42.0', stable, beta, nightly]
+        features-non-34: [module_disambiguation]
+        include:
+          - rust-version: '1.34.2'
+            features-non-34: ""
+    env:
+      FEATURES: pretty_errors,${{matrix.feature-non-34}}
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup Environment
+      run: |
+        # Can only use stable rust to build cargo-expand because it doesn't build on 1.34
+        cargo +stable install cargo-expand
+        # Install dependencies of 'macrotest'
+        rustup toolchain install nightly
+        rustup component add --toolchain nightly rustfmt
+        # Set the rust version to use for this build
+        rustup default ${{ matrix.rust-version }}
+    - name: Test no_features
+      run: "cargo test --tests --no-default-features -- --skip default_features::"
+    - name: Test default_features
+      if: matrix.rust-version != '1.34.2'
+      run: "cargo test --tests --verbose default_features::"
+    - name: Test module_disambiguation
+      if: matrix.rust-version != '1.34.2'
+      run: "cargo test --tests --features module_disambiguation -- --skip default_features::"
+    - name: Test pretty_errors
+      run: "cargo test --tests --features pretty_errors -- --skip default_features::"
+    - run: echo $features
+    - name: Test All Features
+      run: "cargo test --tests --features $FEATURES -- --skip default_features::"
+    - name: Test Documentation Code
+      # We only use >1.34 because there is a bug in 'cargo test'
+      # that means doctests always use all default features.
+      # This will cause 'module_disambiguation' doctests to fail on 1.34
+      if: matrix.rust-version != '1.34.2'
+      run: cargo test --doc --all-features
+    - name: Build Documentation
+      run: cargo doc
+      
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rust-version: nightly-2020-06-23
+          #- rust-version: nightly
+          #  may-fail: true
+          #  name: Latest
+    
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install
+        run: |
+          rustup toolchain install ${{matrix.rust-version}}
+          rustup component add --toolchain ${{matrix.rust-version}} rustfmt
+      - name: Check
+        run: cargo +${{matrix.rust-version}} fmt -- --check
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: [test, rustfmt]
+    if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
+    steps:
+      - run: echo "Run deploy"
