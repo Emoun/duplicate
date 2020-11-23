@@ -81,4 +81,44 @@ jobs:
     needs: [test, rustfmt]
     if: github.event_name == 'push' && contains(github.ref, 'refs/tags/')
     steps:
-      - run: echo "Run deploy"
+      - uses: actions/checkout@v2
+      - name: Get Version
+        run: |
+          echo "GIT_VERSION: $GIT_VERSION"
+          echo GIT_VERSION=$(git describe --tags) >> $GITHUB_ENV
+          echo "GIT_VERSION: $GIT_VERSION"
+      - name: Prepare Git
+        run: |
+          git config user.email "no-reply@github.com"
+          git config user.name "Github Actions"
+          # Use throw-away branch so we don't push the changes to origin
+          git checkout -b deploy_branch
+      - name: Prepare Crate
+        run: |
+          # Update cargo version, 
+          sed -i "s/version = \"0.0.0\"/version = \"$GIT_VERSION\"/" Cargo.toml
+          git add Cargo.toml
+          # Insert changes to cargo readme
+          sed -n "/^## \[Unreleased]/,/^## \[[0-9]/p;/^## \[[0-9]/q" CHANGELOG.md | head -n -1 | tail -n +2 > CHANGES.txt
+          sed -e '/\[changelog_body]/{' -e 'r CHANGES.txt' -e 'd' -e '}' -i cargo-readme.md
+          git add cargo-readme.md
+          rm CHANGES.txt
+          # Commit changes so cargo doesn't complain about dirty repo
+          git commit -m "Deploy changes."
+          # Package crate to ensure it works without issue
+          cargo package
+      - name: Login
+        run: cargo login abcdefghijklmnopqrstuvwxyz012345
+      - name: Publish
+        run: cargo publish --dry-run
+      - name: Update Changelog
+        run: |
+          # Back to master to clean the changes made during packaging.
+          git checkout master
+          # Update changelog
+          ehoc DATE=$(date +%Y-%m-%d) >> $GITHUB_ENV
+          sed -i "s/## \[Unreleased]/## \[Unreleased]\n\n## \[$GIT_VERSION] - $DATE/" CHANGELOG.md
+          git add CHANGELOG.md
+          git commit -m "Reset CHANGELOG after v$GIT_VERSION."
+          # Push changes to repo
+          git push origin master
