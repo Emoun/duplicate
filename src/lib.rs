@@ -539,12 +539,12 @@
 //! # // This is part of the workaround for not being able to import
 //! # // these traits in each module. We rename them so that they
 //! # // don't clash with each other.
-//! # use module_u_8::IsNegative as trait1;
-//! # use module_u_8::IsMax as trait2;
-//! # use module_u_16::IsNegative as trait3;
-//! # use module_u_16::IsMax as trait4;
-//! # use module_u_32::IsNegative as trait5;
-//! # use module_u_32::IsMax as trait6;
+//! # use module_u8::IsNegative as trait1;
+//! # use module_u8::IsMax as trait2;
+//! # use module_u16::IsNegative as trait3;
+//! # use module_u16::IsMax as trait4;
+//! # use module_u32::IsNegative as trait5;
+//! # use module_u32::IsMax as trait6;
 //!
 //! assert!(!42u8.is_max());
 //! assert!(!42u16.is_max());
@@ -556,12 +556,14 @@
 //! ```
 //!
 //! This works because the three duplicate modules get assigned unique names:
-//! `module_u_8`, `module_u_16`, and `module_u_32`. This only works if a
+//! `module_u8`, `module_u16`, and `module_u32`. This only works if a
 //! substitution identifier can be found, where all its substitutions only
 //! produce a single identifier and nothing else. Those identifiers are then
 //! converted to snake case, and postfixed to the original module's name,
-//! e.g., `module  + u8 = module_u_8`. The first suitable substitution
-//! identifier is chosen.
+//! e.g., `module  + u8 = module_u8`. The first suitable substitution
+//! identifier is chosen. Note that the exact way we generate the unique names
+//! is not part of any stability guarantee and should not be depended upon.
+//! It may change in the future without bumping the major version.
 //!
 //! ### `pretty_errors`
 //! __More Detailed Error Messages__ (Enabled by default)

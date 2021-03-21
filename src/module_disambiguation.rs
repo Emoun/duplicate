@@ -1,5 +1,5 @@
 use crate::{substitute::Substitution, SubstitutionGroup};
-use convert_case::{Case, Casing};
+use heck::SnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 
 /// If the given item is a module declaration and the substitutions don't
@@ -20,7 +20,7 @@ pub(crate) fn unambiguate_module(
 				.substitutes_identifier()
 				.unwrap()
 				.to_string()
-				.to_case(Case::Snake);
+				.to_snake_case();
 			let replacement_name = module.to_string() + "_" + &postfix;
 			let replacement = Ident::new(&replacement_name, module.span());
 			group

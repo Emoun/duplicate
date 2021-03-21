@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Substituted the `convert_case` dependency for `heck`. See [#22](https://github.com/Emoun/duplicate/issues/22)
+
 ## [0.2.9] - 2020-09-28
 
 ### Added
