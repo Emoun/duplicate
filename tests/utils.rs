@@ -104,7 +104,7 @@ impl<'a> ExpansionTester<'a>
 					}
 					else
 					{
-						panic!(format!("Error accessing source file: {:?}", file))
+						panic!("Error accessing source file: {:?}", file)
 					}
 				}
 			}

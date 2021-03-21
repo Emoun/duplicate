@@ -231,12 +231,12 @@ fn substitute_next_token(
 					}
 					else
 					{
-						panic!(format!(
+						panic!(
 							"Substitution identifier '{}' takes {} arguments but was supplied \
 							 with none.",
 							ident.to_string(),
 							subst.arg_count
-						))
+						)
 					}
 				}
 				else

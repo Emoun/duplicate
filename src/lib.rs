@@ -1007,7 +1007,7 @@ fn abort(span: Span, msg: &str) -> !
 	}
 	#[cfg(not(feature = "pretty_errors"))]
 	{
-		panic!(format!("{}", msg));
+		panic!("{}", msg);
 	}
 }
 
