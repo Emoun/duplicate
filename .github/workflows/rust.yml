@@ -46,7 +46,6 @@ jobs:
         run: "cargo test --tests --features module_disambiguation -- --skip default_features::"
       - name: Test pretty_errors
         run: "cargo test --tests --features pretty_errors -- --skip default_features::"
-      - run: echo $features
       - name: Test All Features
         run: "cargo test --tests --features $FEATURES -- --skip default_features::"
       - name: Test Documentation Code

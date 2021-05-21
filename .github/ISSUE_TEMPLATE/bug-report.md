@@ -16,6 +16,12 @@ Feel free to keep sections empty if they are not relevant or you don't know what
 What were you doing/trying to do when you encountered the error.
 -->
 
+### Reproduction:
+<!--
+Please describe how others can reproduce the bug.
+If possible, provide a minimal code example that exhibits the fault behavior.
+-->
+
 ### Expected Behavior:
 <!--
 What did you originally expect to happen?
@@ -25,12 +31,6 @@ What did you originally expect to happen?
 <!--
 What actually happened that is different from the expected behavior?
 If not obvious, why is this behavior wrong?
--->
-
-### Reproduction:
-<!--
-Please describe how others can reproduce the bug.
-If possible, provide a minimal code example that exhibits the fault behavior.
 -->
 
 ### Affected Versions:
