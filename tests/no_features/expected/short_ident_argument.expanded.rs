@@ -10,3 +10,5 @@ fn fn_const_5<'a>(arg: &'a Result<i32, u8>) -> &'a i32 {}
 fn fn_mut_5<'a>(arg: &'a mut Result<i32, u8>) -> &'a mut i32 {}
 fn fn_const_6(arg: &i32) {}
 fn fn_mut_6(arg: &mut i32) {}
+fn fn_const_7(arg: &&i32) {}
+fn fn_mut_7(arg: &mut &mut i32) {}

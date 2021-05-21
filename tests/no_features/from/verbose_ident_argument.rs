@@ -112,3 +112,17 @@ fn fn_name(arg: refs([i32])){}
 )]//duplicate_end
 fn fn_name(arg: refs([i32]), second_arg: arg_2([i64])){}
 //item_end
+
+// Test identifier with argument called inside itself
+#[duplicate::duplicate(
+	[
+		fn_name		[fn_const_9]
+		refs(type)	[&type]
+	]
+	[
+		refs(type)	[&mut type]
+		fn_name		[fn_mut_9]
+	]
+)]//duplicate_end
+fn fn_name(arg: refs([refs([i32])])){}
+//item_end

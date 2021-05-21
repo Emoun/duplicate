@@ -14,3 +14,5 @@ fn fn_const_7(arg: &i32) {}
 fn fn_mut_7(arg: &mut i32) {}
 fn fn_const_8(arg: &i32, second_arg: &mut i64) {}
 fn fn_mut_8(arg: &mut i32, second_arg: &i64) {}
+fn fn_const_9(arg: &&i32) {}
+fn fn_mut_9(arg: &mut &mut i32) {}

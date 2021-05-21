@@ -990,7 +990,7 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 			}
 		}
 	}
-	let result = substitute(item, subs);
+	let result = substitute(item, subs.iter());
 	Ok(result)
 }
 

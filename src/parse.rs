@@ -414,5 +414,5 @@ fn invoke_nested(
 	let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span())?;
 
 	let nested_item = parse_group(iter, nested_attr.span(), hints)?;
-	Ok(substitute(nested_item.stream(), nested_subs))
+	Ok(substitute(nested_item.stream(), nested_subs.iter()))
 }

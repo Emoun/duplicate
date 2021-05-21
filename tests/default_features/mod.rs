@@ -32,7 +32,7 @@ macro_rules! default_features {
 			#[test]
 			pub fn is_default()
 			{
-				assert!(IS_DEFAULT, format!("Feature '{}' is not enabled by default.", $feature_string));
+				assert!(IS_DEFAULT, "Feature '{}' is not enabled by default.", $feature_string);
 			}
 		}
 	};

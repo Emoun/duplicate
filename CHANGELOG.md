@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Substituted the `convert_case` dependency for `heck`. See [#22](https://github.com/Emoun/duplicate/issues/22)
 
+### Fixed
+
+- Now also substitutes code inside substitution arguments. See [#24](https://github.com/Emoun/duplicate/issues/24)
+
 ## [0.2.9] - 2020-09-28
 
 ### Added

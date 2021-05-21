@@ -47,7 +47,16 @@ fn fn_name<'a>(arg: refs(['a], [Result<i32,u8>],))  -> refs(['a], [i32]) {}
 #[duplicate::duplicate(
 	refs(type)	fn_name;
 	[&type] 	[fn_const_6];
-	[&mut type] [fn_mut_6];
+	[&mut type]	[fn_mut_6];
 )]//duplicate_end
 fn fn_name(arg: refs([i32])){}
+//item_end
+
+// Test identifier with argument called inside itself
+#[duplicate::duplicate(
+	refs(type)	fn_name;
+	[&type] 	[fn_const_7];
+	[&mut type] [fn_mut_7];
+)]//duplicate_end
+fn fn_name(arg: refs([refs([i32])])){}
 //item_end

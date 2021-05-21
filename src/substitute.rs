@@ -176,7 +176,10 @@ impl Substitution
 }
 
 /// Duplicates the given token stream, substituting any identifiers found.
-pub(crate) fn substitute(item: TokenStream, groups: Vec<SubstitutionGroup>) -> TokenStream
+pub(crate) fn substitute<'a>(
+	item: TokenStream,
+	groups: impl Iterator<Item = &'a SubstitutionGroup>,
+) -> TokenStream
 {
 	let mut result = TokenStream::new();
 
@@ -214,7 +217,7 @@ fn substitute_next_token(
 						let mut args = Vec::new();
 						while let Ok(group) = parse_group(&mut group_stream_iter, ident.span(), "")
 						{
-							args.push(group.stream());
+							args.push(substitute(group.stream(), Some(substitutions).into_iter()));
 							match group_stream_iter.peek()
 							{
 								Some(TokenTree::Punct(punct)) if punct_is_char(punct, ',') =>
