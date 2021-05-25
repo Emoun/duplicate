@@ -1,61 +1,105 @@
 use proc_macro::{Delimiter, Group, Punct, Spacing, Span, TokenTree};
+use std::iter::Peekable;
 
-/// Tries to parse a valid group from the given token stream iterator, returning
-/// the group if successful.
+/// Creates an error for checking/parsing groups.
+///
+/// Always returns Err(..) with an error message composed of the prefix,
+/// expected delimiter span, and given hints.
+pub fn group_err<T>(
+	span: Span,
+	prefix: &str,
+	expected: Delimiter,
+	hints: &str,
+) -> Result<T, (Span, String)>
+{
+	Err((
+		span,
+		format!(
+			"{}\nExpected '{}'.\n{}",
+			prefix,
+			match expected
+			{
+				Delimiter::Brace => '{',
+				Delimiter::Bracket => '[',
+				Delimiter::Parenthesis => '(',
+				_ => unreachable!("Shouldn't expect None delimiters"),
+			},
+			hints
+		),
+	))
+}
+
+/// Tries to parse a valid group with the given delimiter from the given token
+/// stream iterator, returning the group if successful.
 ///
 /// If the next token is not a valid group, issues an error, that indicates to
 /// the given span and adding the given string to the end of the message.
+///
+/// Always consumes a token from the iterator
 pub fn parse_group(
-	iter: &mut impl Iterator<Item = TokenTree>,
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+	del: Delimiter,
 	parent_span: Span,
 	hints: &str,
 ) -> Result<Group, (Span, String)>
 {
-	if let Some(tree) = iter.next()
+	if let Some(tree) = iter.peek()
 	{
-		check_group(tree, hints)
+		if let TokenTree::Group(group) = tree
+		{
+			check_delimiter(&group, del)?;
+			match iter.next()
+			{
+				Some(TokenTree::Group(group)) => Ok(group),
+				_ => unreachable!(),
+			}
+		}
+		else
+		{
+			group_err(tree.span(), "Not a group.", del, hints)
+		}
 	}
 	else
 	{
-		return Err((
+		group_err(
 			parent_span,
-			"Unexpected end of macro invocation. Expected '[', '{', or '('.\n".to_string() + hints,
-		));
+			"Unexpected end of macro invocation.",
+			del,
+			hints,
+		)
 	}
 }
 
-/// Ensures the given token is a valid group and if so, returns it.
+/// Ensures the given token is a valid group with the given delimiter and if so,
+/// returns it.
 ///
 /// If not, issues an error, adding the given hints to the error message.
-pub fn check_group(tree: TokenTree, hints: &str) -> Result<Group, (Span, String)>
+pub fn check_group(tree: TokenTree, del: Delimiter, hints: &str) -> Result<Group, (Span, String)>
 {
 	if let TokenTree::Group(group) = tree
 	{
-		check_delimiter(&group)?;
+		check_delimiter(&group, del)?;
 		Ok(group)
 	}
 	else
 	{
-		return Err((
-			tree.span(),
-			"Unexpected token. Expected '[', '{', or '('.\n".to_string() + hints,
-		));
+		group_err(tree.span(), "Not a group.", del, hints)
 	}
 }
 
-/// Checks that the given group's delimiter is a bracket ('[]','{}', or '()').
+/// Checks that the given group's delimiter is the given one.
 ///
-/// If so, returns the same group, otherwise issues an error.
-pub fn check_delimiter(group: &Group) -> Result<(), (Span, String)>
+/// If not, returns an error.
+pub fn check_delimiter(group: &Group, del: Delimiter) -> Result<(), (Span, String)>
 {
-	if group.delimiter() == Delimiter::None
+	if group.delimiter() != del
 	{
-		return Err((
-			group.span(),
-			"Unexpected delimiter for group. Expected '[]','{}', or '()' but received none.".into(),
-		));
+		group_err(group.span(), "Unexpected delimiter for group.", del, "")
 	}
-	Ok(())
+	else
+	{
+		Ok(())
+	}
 }
 
 /// Checks whether the given punctuation is exactly equal to the given

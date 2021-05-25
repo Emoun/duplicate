@@ -1,5 +1,6 @@
 use crate::{parse_utils::*, SubstitutionGroup};
 use proc_macro::{Delimiter, Group, Ident, TokenStream, TokenTree};
+use std::iter::Peekable;
 
 /// The types of sub-substitutions composing a single substitution.
 #[derive(Debug)]
@@ -185,7 +186,7 @@ pub(crate) fn substitute<'a>(
 
 	for substitutions in groups
 	{
-		let mut item_iter = item.clone().into_iter();
+		let mut item_iter = item.clone().into_iter().peekable();
 		while let Some(stream) = substitute_next_token(&mut item_iter, &substitutions)
 		{
 			result.extend(stream);
@@ -198,7 +199,7 @@ pub(crate) fn substitute<'a>(
 /// Recursively checks the given token for any use of the given substitution
 /// identifiers and substitutes them, returning the resulting token stream.
 fn substitute_next_token(
-	tree: &mut impl Iterator<Item = TokenTree>,
+	tree: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	substitutions: &SubstitutionGroup,
 ) -> Option<TokenStream>
 {
@@ -211,11 +212,16 @@ fn substitute_next_token(
 			{
 				let stream = if subst.arg_count > 0
 				{
-					if let Ok(group) = parse_group(tree, ident.span(), "")
+					if let Ok(group) = parse_group(tree, Delimiter::Parenthesis, ident.span(), "")
 					{
 						let mut group_stream_iter = group.stream().into_iter().peekable();
 						let mut args = Vec::new();
-						while let Ok(group) = parse_group(&mut group_stream_iter, ident.span(), "")
+						while let Ok(group) = parse_group(
+							&mut group_stream_iter,
+							Delimiter::Bracket,
+							ident.span(),
+							"",
+						)
 						{
 							args.push(substitute(group.stream(), Some(substitutions).into_iter()));
 							match group_stream_iter.peek()
@@ -262,7 +268,7 @@ fn substitute_next_token(
 		Some(TokenTree::Group(group)) =>
 		{
 			let mut substituted = TokenStream::new();
-			let mut group_iter = group.stream().into_iter();
+			let mut group_iter = group.stream().into_iter().peekable();
 			while let Some(stream) = substitute_next_token(&mut group_iter, substitutions)
 			{
 				substituted.extend(stream)

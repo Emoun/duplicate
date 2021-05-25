@@ -3,7 +3,7 @@ use crate::{
 	substitute::{substitute, Substitution},
 	SubstitutionGroup,
 };
-use proc_macro::{token_stream::IntoIter, Ident, Span, TokenStream, TokenTree};
+use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Span, TokenStream, TokenTree};
 use std::{collections::HashSet, iter::Peekable};
 
 /// Parses the attribute part of an invocation of duplicate, returning
@@ -84,7 +84,7 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (S
 	}
 
 	let mut sub_groups = Vec::new();
-	let mut iter = attr.into_iter();
+	let mut iter = attr.into_iter().peekable();
 
 	let mut substitution_ids = None;
 	loop
@@ -133,6 +133,7 @@ fn extract_verbose_substitutions(
 	let tree_span = tree.span();
 	let group = check_group(
 		tree,
+		Delimiter::Bracket,
 		"Hint: When using verbose syntax, a substitutions must be enclosed in a \
 		 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ substitution2 \
 		 ]\n]",
@@ -152,37 +153,24 @@ fn extract_verbose_substitutions(
 		{
 			if let TokenTree::Ident(ident) = ident
 			{
-				let group_1 = parse_group(
+				let group_1 = parse_group(&mut stream, Delimiter::Parenthesis, ident.span(), "");
+				let group_2 = parse_group(
 					&mut stream,
+					Delimiter::Bracket,
 					ident.span(),
 					"Hint: A substitution identifier should be followed by a group containing the \
 					 code to be inserted instead of any occurrence of the identifier.",
-				)?;
+				);
 
-				let group_2 = if let Some(TokenTree::Group(group)) = stream.peek()
+				let substitution = match (group_1, group_2)
 				{
-					if check_delimiter(&group).is_ok()
+					(Ok(params), Ok(sub)) =>
 					{
-						stream.next()
-					}
-					else
-					{
-						None
-					}
-				}
-				else
-				{
-					None
-				};
-
-				let substitution = if let Some(TokenTree::Group(sub)) = group_2
-				{
-					let args = extract_argument_list(&group_1)?;
-					Substitution::new(&args, sub.stream().into_iter()).unwrap()
-				}
-				else
-				{
-					Substitution::new_simple(group_1.stream())
+						let args = extract_argument_list(&params)?;
+						Substitution::new(&args, sub.stream().into_iter()).unwrap()
+					},
+					(_, Ok(sub)) => Substitution::new_simple(sub.stream()),
+					(_, Err(err)) => return Err(err),
 				};
 
 				substitutions.add_substitution(ident, substitution)?;
@@ -304,7 +292,7 @@ fn validate_short_get_identifier_arguments(
 	{
 		if let TokenTree::Group(group) = token
 		{
-			if check_delimiter(group).is_ok()
+			if check_delimiter(group, Delimiter::Parenthesis).is_ok()
 			{
 				let result = extract_argument_list(group)?;
 				// Make sure to consume the group
@@ -376,22 +364,22 @@ fn validate_short_get_all_substitution_goups<'a>(
 }
 
 /// Extracts a substitution group in the short syntax and inserts it into
-/// the elements returned by the given groups iterator.
+/// the elements returned by the given group's iterator.
 fn validate_short_get_substitutions<'a>(
-	iter: &mut impl Iterator<Item = TokenTree>,
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	mut span: Span,
 	mut groups: impl Iterator<Item = &'a mut TokenStream>,
 ) -> Result<Span, (Span, String)>
 {
 	if let Some(token) = iter.next()
 	{
-		let group = check_group(token, "")?;
+		let group = check_group(token, Delimiter::Bracket, "")?;
 		span = group.span();
 		*groups.next().unwrap() = group.stream();
 
 		for stream in groups
 		{
-			let group = parse_group(iter, span, "")?;
+			let group = parse_group(iter, Delimiter::Bracket, span, "")?;
 			span = group.span();
 			*stream = group.stream();
 		}
@@ -403,16 +391,16 @@ fn validate_short_get_substitutions<'a>(
 /// next group is the attribute part of the invocation and the
 /// group after that is the element.
 fn invoke_nested(
-	iter: &mut impl Iterator<Item = TokenTree>,
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	span: Span,
 ) -> Result<TokenStream, (Span, String)>
 {
 	let hints = "Hint: '#' is a nested invocation of the macro and must therefore be followed by \
 	             a group containing the invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
 	             substitute2 ]\n][\n\tCode to be substituted whenever 'identifier' occurs \n]";
-	let nested_attr = parse_group(iter, span, hints)?;
+	let nested_attr = parse_group(iter, Delimiter::Bracket, span, hints)?;
 	let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span())?;
 
-	let nested_item = parse_group(iter, nested_attr.span(), hints)?;
+	let nested_item = parse_group(iter, Delimiter::Bracket, nested_attr.span(), hints)?;
 	Ok(substitute(nested_item.stream(), nested_subs.iter()))
 }

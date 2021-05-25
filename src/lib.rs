@@ -82,8 +82,7 @@
 //!
 //! Substitution identifiers must be valid Rust identifiers.
 //! The code inside substitutions can be arbitrary, as long as the expanded code
-//! is valid. Additionally, any "bracket" type is valid; we could have used `()`
-//! or `{}` anywhere `[]` is used in these examples.
+//! is valid.
 //!
 //! ## Parameterized Substitution
 //!
@@ -136,14 +135,14 @@
 //! ```
 //!
 //! In a `duplicate` invocation, if a substitution identifier is followed by
-//! brackets containing a list of parameters, they can be used in the
+//! parenthises containing a list of parameters, they can be used in the
 //! substitution. In this example, the `reference` identifier takes 1 parameter
 //! named `type`, which is used in the substitutions to create either a shared
 //! reference to the type or a mutable one. When using the `reference` in the
 //! method declaration, we give it different types as arguments to construct
 //! either shared or mutable references.
 //! E.g. `reference([Self])` becomes `&Self` in the first duplicate and `&mut
-//! Self` in the second. An argument can be any code snippet inside brackets.
+//! Self` in the second. An argument can be any code snippet inside `[]`.
 //!
 //! A substitution identifier can take any number of parameters.
 //! We can use this if we need to also provide the references with a lifetime:
@@ -315,7 +314,7 @@
 //! ```
 //!
 //! We use `#` to invoke the macro inside itself, producing duplicates
-//! of the code inside the following `[]`, `{}`, or `()`.
+//! of the code inside the following `[]`.
 //! In our example, we have 2 invocations that each produce 3 substitution
 //! groups, inserting the correct `implementation` for their signed or unsigned
 //! types. The above nested invocation is equivalent to the previous, non-nested
@@ -397,7 +396,7 @@
 //! # assert!(!42u32.is_max());
 //! ```
 //!
-//! In the verbose syntax, a substitution group is put inside brackets and
+//! In the verbose syntax, a substitution group is put inside '[]' and
 //! includes a list of substitution identifiers followed by their substitutions.
 //! No `;`s are needed. Here is an annotated version of the same code:
 //!
@@ -600,7 +599,7 @@ use crate::parse_utils::{next_token, parse_group};
 #[cfg(feature = "module_disambiguation")]
 use module_disambiguation::*;
 use parse::*;
-use proc_macro::{Ident, Span, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
 use std::{collections::HashMap, iter::FromIterator};
@@ -642,7 +641,7 @@ use substitute::*;
 /// Then a `;` seperated list of substitution groups must be given (at least 1
 /// group). Every group is a list of substitutions, one for each substitution
 /// identifier given in the first line.
-/// The substitutions must be enclosed in `[]`, `{}`, or `()`, but are otherwise
+/// The substitutions must be enclosed in `[]` but are otherwise
 /// free.
 ///
 /// # Verbose Syntax
@@ -680,7 +679,7 @@ use substitute::*;
 /// Has the same functionality as the previous short-syntax example.
 ///
 /// For each duplicate needed, a _substitution group_ must be given enclosed in
-/// `[]`, `{}`, or `()`. A substitution group is a set of identifiers and
+/// `[]`. A substitution group is a set of identifiers and
 /// substitution pairs, like in the short syntax, but there can only be one
 /// substitution per identifier. All substitution groups must have the same
 /// identifiers, however their order is unimportant, as can be seen from the
@@ -714,13 +713,12 @@ use substitute::*;
 /// - `get`: Borrows `self` immutably and return a shared reference.
 /// - `get_mut`: Borrows `self` mutably and returns a mutable reference.
 ///
-/// If an identifier is followed by brackets (in both its declaration and its
-/// use), a set of parameters can be provided in the bracket to customize the
-/// subtituion for each use.
-/// In the declaration a list of identifiers is given, which can be used in its
-/// substitutions. When using the identifier, argument code snippets must be
-/// given in a comma separated list, with each argument being inclosed in
-/// brackets (`()`, `[]`, or `{}`).
+/// If an identifier is followed by parenthises (in both its declaration and its
+/// use), a set of parameters can be provided to customize the subtituion for
+/// each use. In the declaration a list of identifiers is given, which can be
+/// used in its substitutions. When using the identifier, argument code snippets
+/// must be given in a comma separated list, with each argument being inclosed
+/// in `[]`.
 ///
 /// Parameterized substitution is also available for the verbose syntax:
 ///
@@ -872,9 +870,9 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 ///
 /// ## Usage
 ///
-/// A call to `duplicate_inline` must start with a `[]`, `{}`, or `()`
-/// containing the duplication invocation. Everything after that will then be
-/// duplicated according to the invocation.
+/// A call to `duplicate_inline` must start with a `[]` containing the
+/// duplication invocation. Everything after that will then be duplicated
+/// according to the invocation.
 ///
 /// Given the following `duplicate_inline` call:
 /// ```
@@ -939,9 +937,14 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 {
-	let mut iter = stream.into_iter();
+	let mut iter = stream.into_iter().peekable();
 
-	let result = match parse_group(&mut iter, Span::call_site(), "Missing invocation.")
+	let result = match parse_group(
+		&mut iter,
+		Delimiter::Bracket,
+		Span::call_site(),
+		"Missing invocation.",
+	)
 	{
 		Ok(invocation) =>
 		{
@@ -1017,7 +1020,7 @@ fn abort(span: Span, msg: &str) -> !
 /// If not, returns None.
 fn get_module_name(item: &TokenStream) -> Option<Ident>
 {
-	let mut iter = item.clone().into_iter();
+	let mut iter = item.clone().into_iter().peekable();
 
 	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, "").unwrap_or(None)?
 	{
@@ -1025,7 +1028,7 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 		{
 			if let TokenTree::Ident(module) = next_token(&mut iter, "").unwrap_or(None)?
 			{
-				if parse_group(&mut iter, Span::call_site(), "").is_ok()
+				if parse_group(&mut iter, Delimiter::Brace, Span::call_site(), "").is_ok()
 				{
 					return Some(module);
 				}
