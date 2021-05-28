@@ -1,102 +1,140 @@
 use crate::{
 	parse_utils::*,
-	substitute::{substitute, Substitution},
-	SubstitutionGroup,
+	substitute::{duplicate_and_substitute, Substitution},
+	DuplicationDefinition, SubstitutionGroup,
 };
-use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Span, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 use std::{collections::HashSet, iter::Peekable};
 
-/// Parses the attribute part of an invocation of duplicate, returning
-/// all the substitutions that should be made to the item.
-pub(crate) fn parse_attr(
-	attr: TokenStream,
-	stream_span: Span,
-) -> Result<Vec<SubstitutionGroup>, (Span, String)>
+/// Parses the invocation of duplicate, returning all the substitutions that
+/// should be made to the item.
+///
+/// If parsing succeeds returns first a substitution group that indicates global
+/// substitutions that should be applied to all duplicates but don't on their
+/// own indicate a duplicate. Then comes a list of substitution groups, each of
+/// which indicates on duplicate.
+pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinition, (Span, String)>
 {
-	if identify_syntax(attr.clone(), stream_span)?
-	{
-		validate_verbose_attr(attr)
-	}
-	else
-	{
-		let substitutions = validate_short_attr(attr)?;
-		let mut reorder = Vec::new();
+	let mut iter = attr.into_iter().peekable();
 
-		for _ in 0..substitutions[0].2.len()
+	let (global_substitutions, extra) = validate_global_substitutions(&mut iter)?;
+	match extra
+	{
+		None =>
 		{
-			reorder.push(SubstitutionGroup::new());
-		}
+			validate_verbose_invocation(iter, global_substitutions.substitutions.is_empty()).map(
+				|dups| {
+					DuplicationDefinition {
+						global_substitutions,
+						duplications: dups,
+					}
+				},
+			)
+		},
+		Some((ident, group)) =>
+		{
+			let substitutions = validate_short_attr(
+				Some(TokenTree::Ident(ident))
+					.into_iter()
+					.chain(group.map(|g| TokenTree::Group(g)).into_iter())
+					.chain(iter),
+			)?;
+			let mut reorder = Vec::new();
 
-		for (ident, args, subs) in substitutions
-		{
-			for (idx, sub) in subs.into_iter().enumerate()
+			for _ in 0..substitutions[0].2.len()
 			{
-				let substitution = Substitution::new(&args, sub.into_iter());
-				if let Ok(substitution) = substitution
+				reorder.push(SubstitutionGroup::new());
+			}
+
+			for (ident, args, subs) in substitutions
+			{
+				for (idx, sub) in subs.into_iter().enumerate()
 				{
-					reorder[idx].add_substitution(
-						Ident::new(&ident.clone(), Span::call_site()),
-						substitution,
-					)?;
-				}
-				else
-				{
-					return Err((Span::call_site(), "Failed creating substitution".into()));
+					let substitution = Substitution::new(&args, sub.into_iter());
+					if let Ok(substitution) = substitution
+					{
+						reorder[idx].add_substitution(
+							Ident::new(&ident.clone(), Span::call_site()),
+							substitution,
+						)?;
+					}
+					else
+					{
+						return Err((Span::call_site(), "Failed creating substitution".into()));
+					}
 				}
 			}
-		}
-		Ok(reorder)
+			Ok(DuplicationDefinition {
+				global_substitutions,
+				duplications: reorder,
+			})
+		},
 	}
 }
 
-/// True is verbose, false is short
-fn identify_syntax(attr: TokenStream, stream_span: Span) -> Result<bool, (Span, String)>
+/// Validates global substitutions and returns a substitution group with them.
+///
+/// When it fails to validate a global substitution, it might return the next
+/// identifier that the iterator produced optionally followed by the next group
+/// too. The two must therefore be assumed to precede any tokentrees returned by
+/// the iterator and calling this function.
+/// This may happen if the global substitutions are followed by short-syntax,
+/// which starts the same way as a global substitution.
+fn validate_global_substitutions(
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+) -> Result<(SubstitutionGroup, Option<(Ident, Option<Group>)>), (Span, String)>
 {
-	if let Some(token) = next_token(&mut attr.into_iter(), "Could not identify syntax type.")?
+	let mut sub_group = SubstitutionGroup::new();
+	loop
 	{
-		match &token
+		match extract_inline_substitution(iter)
 		{
-			TokenTree::Group(_) => Ok(true),
-			TokenTree::Ident(_) => Ok(false),
-			TokenTree::Punct(p) if is_nested_invocation(p) => Ok(true),
-			_ =>
+			Ok((ident, Ok(sub))) => sub_group.add_substitution(ident, sub)?,
+			Ok((ident, Err(group))) => return Ok((sub_group, Some((ident, group)))),
+			_ => break,
+		}
+
+		match iter.peek()
+		{
+			Some(TokenTree::Punct(p)) if is_semicolon(p) =>
 			{
-				Err((
-					token.span(),
-					"Expected substitution identifier or group. Received neither.".into(),
-				))
+				let _ = iter.next();
 			},
+			Some(t) => return Err((t.span(), "Expected ';'.".into())),
+			_ => break,
 		}
 	}
-	else
-	{
-		Err((stream_span, "No substitutions found.".into()))
-	}
+	Ok((sub_group, None))
 }
 
-/// Validates that the attribute part of a duplicate invocation uses
-/// the verbose syntax, and returns all the substitutions that should be made.
-fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (Span, String)>
+/// Validates that a duplicate invocation uses the verbose syntax, and returns
+/// all the substitutions that should be made.
+fn validate_verbose_invocation(
+	iter: impl Iterator<Item = TokenTree>,
+	err_on_no_subs: bool,
+) -> Result<Vec<SubstitutionGroup>, (Span, String)>
 {
-	if attr.is_empty()
+	let mut iter = iter.peekable();
+	if err_on_no_subs && iter.peek().is_none()
 	{
 		return Err((Span::call_site(), "No substitutions found.".into()));
 	}
 
 	let mut sub_groups = Vec::new();
-	let mut iter = attr.into_iter().peekable();
 
 	let mut substitution_ids = None;
+	let mut err_span = Span::call_site();
 	loop
 	{
-		if let Some(tree) = next_token(&mut iter, "Expected substitution group.")?
+		if let Ok(tree) = next_token(&mut iter, err_span, "Substitution group")
 		{
+			err_span = tree.span();
 			match &tree
 			{
 				TokenTree::Punct(p) if is_nested_invocation(p) =>
 				{
 					let nested_duplicated = invoke_nested(&mut iter, p.span())?;
-					let subs = validate_verbose_attr(nested_duplicated)?;
+					let subs = validate_verbose_invocation(nested_duplicated.into_iter(), true)?;
 					sub_groups.extend(subs.into_iter());
 				},
 				_ =>
@@ -121,6 +159,59 @@ fn validate_verbose_attr(attr: TokenStream) -> Result<Vec<SubstitutionGroup>, (S
 	}
 
 	Ok(sub_groups)
+}
+
+/// Extracts an inline substitution, i.e. a substitution identifier followed by
+/// an optional parameter list, followed by a substitution.
+///
+/// If a substitution identifier is encountered but not the rest of the
+/// substitution, the identifier is returned on its own.
+fn extract_inline_substitution(
+	stream: &mut Peekable<impl Iterator<Item = TokenTree>>,
+) -> Result<(Ident, Result<Substitution, Option<Group>>), (Span, String)>
+{
+	let token = peek_next_token(stream, Span::call_site(), "Substitution identifier")?;
+
+	if let TokenTree::Ident(ident) = token
+	{
+		let _ = stream.next();
+		let group_1 = peek_parse_group(stream, Delimiter::Parenthesis, ident.span(), "");
+
+		if let Ok(params) = group_1
+		{
+			let _ = stream.next();
+			parse_group(
+				stream,
+				Delimiter::Bracket,
+				ident.span(),
+				"Hint: A substitution identifier should be followed by a group containing the \
+				 code to be inserted instead of any occurrence of the identifier.",
+			)
+			.and_then(|sub| {
+				extract_argument_list(&params)
+					.map(|args| Ok(Substitution::new(&args, sub.stream().into_iter()).unwrap()))
+					.or_else(|err| Err(err))
+			})
+			.or_else(|_| Ok(Err(Some(params))))
+		}
+		else
+		{
+			parse_group(
+				stream,
+				Delimiter::Bracket,
+				ident.span(),
+				"Hint: A substitution identifier should be followed by a group containing the \
+				 code to be inserted instead of any occurrence of the identifier.",
+			)
+			.map(|sub| Ok(Substitution::new_simple(sub.stream())))
+			.or_else(|_| Ok(Err(None)))
+		}
+		.map(|result| (ident, result))
+	}
+	else
+	{
+		Err((token.span(), "Expected substitution identifier.".into()))
+	}
 }
 
 /// Extracts a substitution group in the verbose syntax.
@@ -149,39 +240,9 @@ fn extract_verbose_substitutions(
 
 	loop
 	{
-		if let Some(ident) = next_token(&mut stream, "Expected substitution identifier.")?
+		if let Ok((ident, Ok(substitution))) = extract_inline_substitution(&mut stream)
 		{
-			if let TokenTree::Ident(ident) = ident
-			{
-				let group_1 = parse_group(&mut stream, Delimiter::Parenthesis, ident.span(), "");
-				let group_2 = parse_group(
-					&mut stream,
-					Delimiter::Bracket,
-					ident.span(),
-					"Hint: A substitution identifier should be followed by a group containing the \
-					 code to be inserted instead of any occurrence of the identifier.",
-				);
-
-				let substitution = match (group_1, group_2)
-				{
-					(Ok(params), Ok(sub)) =>
-					{
-						let args = extract_argument_list(&params)?;
-						Substitution::new(&args, sub.stream().into_iter()).unwrap()
-					},
-					(_, Ok(sub)) => Substitution::new_simple(sub.stream()),
-					(_, Err(err)) => return Err(err),
-				};
-
-				substitutions.add_substitution(ident, substitution)?;
-			}
-			else
-			{
-				return Err((
-					ident.span(),
-					"Expected substitution identifier, got something else.".into(),
-				));
-			}
+			substitutions.add_substitution(ident, substitution)?;
 		}
 		else
 		{
@@ -226,18 +287,14 @@ fn extract_verbose_substitutions(
 	Ok(substitutions)
 }
 
-/// Validates that the attribute part of a duplicate invocation uses
-/// the short syntax and returns the substitution that should be made.
+/// Validates a duplicate invocation using the short syntax and returns the
+/// substitution that should be made.
 fn validate_short_attr(
-	attr: TokenStream,
+	iter: impl Iterator<Item = TokenTree>,
 ) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>, (Span, String)>
 {
-	if attr.is_empty()
-	{
-		return Err((Span::call_site(), "No substitutions found.".into()));
-	}
+	let mut iter = iter.peekable();
 
-	let mut iter = attr.into_iter();
 	let (idents, span) = validate_short_get_identifiers(&mut iter, Span::call_site())?;
 	let mut result: Vec<_> = idents
 		.into_iter()
@@ -251,7 +308,7 @@ fn validate_short_attr(
 /// Assuming use of the short syntax, gets the initial list of substitution
 /// identifiers.
 fn validate_short_get_identifiers(
-	iter: &mut IntoIter,
+	iter: &mut impl Iterator<Item = TokenTree>,
 	mut span: Span,
 ) -> Result<(Vec<(String, Vec<String>)>, Span), (Span, String)>
 {
@@ -259,25 +316,19 @@ fn validate_short_get_identifiers(
 	let mut result = Vec::new();
 	loop
 	{
-		if let Some(next_token) = next_token(&mut iter, "Expected substitution identifier or ';'.")?
+		let next_token = next_token(&mut iter, span, "Substitution identifier or ';'")?;
+		span = next_token.span();
+		match &next_token
 		{
-			span = next_token.span();
-			match &next_token
+			TokenTree::Ident(ident) =>
 			{
-				TokenTree::Ident(ident) =>
-				{
-					result.push((
-						ident.to_string(),
-						validate_short_get_identifier_arguments(&mut iter)?, // Vec::new()
-					))
-				},
-				TokenTree::Punct(p) if is_semicolon(&p) => break,
-				_ => return Err((span, "Expected substitution identifier or ';'.".into())),
-			}
-		}
-		else
-		{
-			return Err((span, "Expected substitution identifier or ';'.".into()));
+				result.push((
+					ident.to_string(),
+					validate_short_get_identifier_arguments(&mut iter)?, // Vec::new()
+				))
+			},
+			TokenTree::Punct(p) if is_semicolon(&p) => break,
+			_ => return Err((span, "Expected substitution identifier or ';'.".into())),
 		}
 	}
 	Ok((result, span))
@@ -399,8 +450,12 @@ fn invoke_nested(
 	             a group containing the invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
 	             substitute2 ]\n][\n\tCode to be substituted whenever 'identifier' occurs \n]";
 	let nested_attr = parse_group(iter, Delimiter::Bracket, span, hints)?;
-	let nested_subs = parse_attr(nested_attr.stream(), nested_attr.span())?;
+	let nested_dup_def = parse_invocation(nested_attr.stream())?;
 
 	let nested_item = parse_group(iter, Delimiter::Bracket, nested_attr.span(), hints)?;
-	Ok(substitute(nested_item.stream(), nested_subs.iter()))
+	duplicate_and_substitute(
+		nested_item.stream(),
+		&nested_dup_def.global_substitutions,
+		nested_dup_def.duplications.iter(),
+	)
 }

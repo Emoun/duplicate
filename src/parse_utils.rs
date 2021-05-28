@@ -43,16 +43,28 @@ pub fn parse_group(
 	hints: &str,
 ) -> Result<Group, (Span, String)>
 {
+	let result = peek_parse_group(iter, del, parent_span, hints);
+
+	if result.is_ok()
+	{
+		let _ = iter.next();
+	}
+	result
+}
+
+pub fn peek_parse_group(
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+	del: Delimiter,
+	parent_span: Span,
+	hints: &str,
+) -> Result<Group, (Span, String)>
+{
 	if let Some(tree) = iter.peek()
 	{
 		if let TokenTree::Group(group) = tree
 		{
 			check_delimiter(&group, del)?;
-			match iter.next()
-			{
-				Some(TokenTree::Group(group)) => Ok(group),
-				_ => unreachable!(),
-			}
+			Ok(group.clone())
 		}
 		else
 		{
@@ -123,29 +135,79 @@ pub fn is_nested_invocation(p: &Punct) -> bool
 
 /// Gets the next token tree from the iterator.
 ///
+/// See `peek_next_token` for how the next token is found.
+///
+/// Upon success, a token is consumed from the iterator.
+/// If an error is returned, no token is consumed.
+pub fn next_token(
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+	parent_span: Span,
+	expected: &str,
+) -> Result<TokenTree, (Span, String)>
+{
+	let result = peek_next_token(iter, parent_span, expected);
+	if result.is_ok()
+	{
+		let _ = iter.next();
+	}
+	result
+}
+
+/// Gets the next token tree from the iterator without consuming anything.
+///
+/// The first argument is the input, the second argument is the span to use in
+/// case of an error, and the third argument is a description of what parsing
+/// expected to find at the point of error.
+///
 /// If the token is a group without delimiters, the token inside the groups is
 /// returned. If the group has more than one token, an error is returned.
-pub fn next_token(
-	iter: &mut impl Iterator<Item = TokenTree>,
-	err_msg: &str,
-) -> Result<Option<TokenTree>, (Span, String)>
+pub fn peek_next_token(
+	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+	parent_span: Span,
+	expected: &str,
+) -> Result<TokenTree, (Span, String)>
 {
-	match iter.next()
+	let make_err = |span, msg| Err((span, format!("{}\nExpected: {}", msg, expected)));
+	if let Some(token) = iter.peek()
 	{
-		Some(TokenTree::Group(ref group)) if group.delimiter() == Delimiter::None =>
+		match token
 		{
-			let mut in_group = group.stream().into_iter();
-			let result = in_group.next();
-			match (in_group.next(), in_group.next())
+			TokenTree::Group(group) if group.delimiter() == Delimiter::None =>
 			{
-				(None, _) => Ok(result),
-				// If ends with ';' and nothing else, was a statement including
-				// only 1 token, so allow.
-				(Some(TokenTree::Punct(ref p)), None) if is_semicolon(&p) => Ok(result),
-				_ => Err((group.span(), err_msg.into())),
-			}
-		},
-		token => Ok(token),
+				let mut in_group = group.stream().into_iter();
+				if let Some(result) = in_group.next()
+				{
+					match (in_group.next(), in_group.next())
+					{
+						(None, _) => Ok(result),
+						// If ends with ';' and nothing else, was a statement including
+						// only 1 token, so allow.
+						(Some(TokenTree::Punct(ref p)), None) if is_semicolon(&p) => Ok(result),
+						_ =>
+						{
+							make_err(
+								token.span(),
+								"Encountered none-delimited group with multiple tokens. This is \
+								 an internal error. Please file a bug report.",
+							)
+						},
+					}
+				}
+				else
+				{
+					make_err(
+						token.span(),
+						"Encountered none-delimited group with no tokens. This is an internal \
+						 error. Please file a bug report.",
+					)
+				}
+			},
+			token => Ok(token.clone()),
+		}
+	}
+	else
+	{
+		make_err(parent_span, "Unexpected end of macro invocation.")
 	}
 }
 

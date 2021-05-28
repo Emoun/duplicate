@@ -969,11 +969,13 @@ pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (Span, String)>
 {
 	#[allow(unused_mut)]
-	let mut subs = parse_attr(attr, Span::call_site())?;
+	let mut dup_def = parse_invocation(attr)?;
 
 	if let Some(module) = get_module_name(&item)
 	{
-		if subs[0].substitution_of(&module.to_string()).is_none()
+		if dup_def.duplications[0]
+			.substitution_of(&module.to_string())
+			.is_none()
 		{
 			#[cfg(not(feature = "module_disambiguation"))]
 			{
@@ -989,12 +991,15 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (
 			}
 			#[cfg(feature = "module_disambiguation")]
 			{
-				unambiguate_module(module, &mut subs)?;
+				disambiguate_module(module, &mut dup_def)?;
 			}
 		}
 	}
-	let result = substitute(item, subs.iter());
-	Ok(result)
+	duplicate_and_substitute(
+		item,
+		&dup_def.global_substitutions,
+		dup_def.duplications.iter(),
+	)
 }
 
 /// Terminates with an error and produces the given message.
@@ -1022,11 +1027,11 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 {
 	let mut iter = item.clone().into_iter().peekable();
 
-	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, "").unwrap_or(None)?
+	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, Span::call_site(), "").ok()?
 	{
 		if mod_keyword.to_string() == "mod"
 		{
-			if let TokenTree::Ident(module) = next_token(&mut iter, "").unwrap_or(None)?
+			if let TokenTree::Ident(module) = next_token(&mut iter, Span::call_site(), "").ok()?
 			{
 				if parse_group(&mut iter, Delimiter::Brace, Span::call_site(), "").is_ok()
 				{
@@ -1038,6 +1043,7 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 	None
 }
 
+#[derive(Debug)]
 struct SubstitutionGroup
 {
 	substitutions: HashMap<String, Substitution>,
@@ -1100,4 +1106,11 @@ impl SubstitutionGroup
 	{
 		self.identifier_order.iter()
 	}
+}
+
+/// Defines how duplication should happen.
+struct DuplicationDefinition
+{
+	pub global_substitutions: SubstitutionGroup,
+	pub duplications: Vec<SubstitutionGroup>,
 }

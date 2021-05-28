@@ -1,18 +1,18 @@
-use crate::{substitute::Substitution, SubstitutionGroup};
+use crate::{substitute::Substitution, DuplicationDefinition};
 use heck::SnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 
 /// If the given item is a module declaration and the substitutions don't
 /// reassign the module identifier for each substitution, this function
 /// will try to do so.
-pub(crate) fn unambiguate_module(
+pub(crate) fn disambiguate_module(
 	module: Ident,
-	substitutions: &mut Vec<SubstitutionGroup>,
+	dup_def: &mut DuplicationDefinition,
 ) -> Result<(), (Span, String)>
 {
-	if let Some(ident) = find_simple(substitutions)
+	if let Some(ident) = find_simple(dup_def)
 	{
-		for group in substitutions.iter_mut()
+		for group in dup_def.duplications.iter_mut()
 		{
 			let postfix = group
 				.substitution_of(&ident)
@@ -45,8 +45,9 @@ pub(crate) fn unambiguate_module(
 	}
 }
 
-fn find_simple(substitutions: &mut Vec<SubstitutionGroup>) -> Option<String>
+fn find_simple(dup_def: &mut DuplicationDefinition) -> Option<String>
 {
+	let substitutions = &mut dup_def.duplications;
 	'outer: for ident in substitutions[0].identifiers_ordered()
 	{
 		for group in substitutions.iter()
