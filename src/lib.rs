@@ -496,6 +496,113 @@
 //! invocations use short syntax but produce verbose syntax for the outer-most
 //! invocation.
 //!
+//! ## Global Substitutions
+//!
+//! Say we have a function that takes two types as inputs and returns the same
+//! types as output:
+//!
+//! ```
+//! # struct Some<T1,T2>(T1,T2);
+//! # struct Complex<T>(T);
+//! # struct Type<T>(T);
+//! # struct WeDont<T1,T2,T3>(T1,T2,T3);
+//! # struct Want();
+//! # struct To();
+//! # struct Repeat();
+//! # struct Other();
+//! fn some_func(
+//!   arg1: Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>,
+//!   arg2: Some<Other, Complex<Type<(To, Repeat)>>>)
+//!   -> (
+//!     Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>,
+//!     Some<Other, Complex<Type<(To, Repeat)>>>
+//!   )
+//! {
+//!  # /*
+//!   ...
+//!  # */
+//!  # unimplemented!()
+//! }
+//! ```
+//!
+//! Using global substitution, we can avoid repeating the types:
+//!
+//! ```
+//! # struct Some<T1,T2>(T1,T2);
+//! # struct Complex<T>(T);
+//! # struct Type<T>(T);
+//! # struct WeDont<T1,T2,T3>(T1,T2,T3);
+//! # struct Want();
+//! # struct To();
+//! # struct Repeat();
+//! # struct Other();
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
+//!   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
+//! )]
+//! fn some_func(arg1: typ1, arg2: typ2) -> (typ1, typ2){
+//!  # /*
+//!   ...
+//!  # */
+//!  # unimplemented!()
+//! }
+//! ```
+//!
+//! Here we have defined the two global substitution variables `typ1` and
+//! `typ2`, and used them in the function definition. Global substitutions have
+//! the same syntax as verbose syntax substitution (identifier, optionally
+//! followed by parameters, followed by a substitution.) In our example, no
+//! short or verbose syntax substitution groups are given. While this is not
+//! usually allowed, since we have given at least one global substitution, the
+//! item will simply be kept as is, except with the global substitutions.
+//!
+//! We can follow global substitutions by substitution groups to achieve
+//! duplication too:
+//!
+//! ```
+//! # struct Some<T1,T2>(T1,T2);
+//! # struct Complex<T>(T);
+//! # struct Type<T>(T);
+//! # struct WeDont<T1,T2,T3>(T1,T2,T3);
+//! # struct Want();
+//! # struct To();
+//! # struct Repeat();
+//! # struct Other();
+//! # use duplicate::duplicate;
+//! #[duplicate(
+//!   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
+//!   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
+//!   method     reference(type);
+//!   [get]      [& type];
+//!   [get_mut]  [&mut type];
+//! )]
+//! pub fn method(
+//!   arg0: reference([Type<()>]),
+//!   arg1: typ1,
+//!   arg2: typ2)
+//!   -> (reference([typ1]), reference([typ2]))
+//! {
+//!  # /*
+//!   ...
+//!  # */
+//!  # unimplemented!()
+//! }
+//! ```
+//!
+//! Here we duplicate the function to use either shared or mutable reference,
+//! while reusing `typ1` and `typ2` in both duplicates.
+//!
+//! The following additional rules apply when using global substitutions:
+//!
+//! * All global substitutions must come before any short or verbose syntax
+//!   substitution groups.
+//! * Global substitution variable are __not__ substituted inside the bodies of
+//!   following substitutions. If that is needed, multiple invocations can be
+//!   used.
+//! * All global substitutions must be separated by `;`, also when followed by
+//!   substitution groups.
+//!
 //! # Crate Features
 //!
 //! ### `module_disambiguation`
@@ -605,8 +712,8 @@ use proc_macro_error::{abort, proc_macro_error};
 use std::{collections::HashMap, iter::FromIterator};
 use substitute::*;
 
-/// Duplicates the item it is applied to and substitutes specific identifiers
-/// for different code snippets in each duplicate.
+/// Duplicates the item and substitutes specific identifiers for different code
+/// snippets in each duplicate.
 ///
 /// # Short Syntax
 /// ```
@@ -848,6 +955,44 @@ use substitute::*;
 /// assert!(!42u32.is_negative());
 /// assert!(!42i8.is_negative());
 /// ```
+///
+/// ## Global Substitution
+///
+/// ```
+/// # struct Some<T1,T2>(T1,T2);
+/// # struct Complex<T>(T);
+/// # struct Type<T>(T);
+/// # struct WeDont<T1,T2,T3>(T1,T2,T3);
+/// # struct Want();
+/// # struct To();
+/// # struct Repeat();
+/// # struct Other();
+/// # use duplicate::duplicate;
+/// #[duplicate(
+///   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
+///   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
+///   method     reference(type);
+///   [get]      [& type];
+///   [get_mut]  [&mut type];
+/// )]
+/// pub fn method(
+///   arg0: reference([Type<()>]),
+///   arg1: typ1,
+///   arg2: typ2)
+///   -> (reference([typ1]), reference([typ2]))
+/// {
+///  # /*
+///   ...
+///  # */
+///  # unimplemented!()
+/// }
+/// ```
+///
+/// The global substitutions (`typ1` and `typ2`) are substituted in both
+/// duplicates of the function. Global substitutions have the same syntax as
+/// verbose syntax substitutions, are `;` separated (even from following
+/// susbtitutions groups), must all be defined at the beginning, and aren't
+/// usable in the invocation itself but only in the code being duplicated.
 #[proc_macro_attribute]
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream

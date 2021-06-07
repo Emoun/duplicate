@@ -7,16 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Global Substitution: Allows substitutions that are applied to all duplicates equally. See [#23](https://github.com/Emoun/duplicate/issues/23).
+
 ### Changed
 
 - [BREAKING] Limited which group delimiters are allowed in various syntactic positions.
 The specific delimiters required now follow the use of delimiters in previous documentation examples. 
-See  [#25](https://github.com/Emoun/duplicate/issues/25)
-- Substituted the `convert_case` dependency for `heck`. See [#22](https://github.com/Emoun/duplicate/issues/22)
+See  [#25](https://github.com/Emoun/duplicate/issues/25).
+- Substituted the `convert_case` dependency for `heck`. See [#22](https://github.com/Emoun/duplicate/issues/22).
 
 ### Fixed
 
-- Now also substitutes code inside substitution arguments. See [#24](https://github.com/Emoun/duplicate/issues/24)
+- Now also substitutes code inside substitution arguments. See [#24](https://github.com/Emoun/duplicate/issues/24).
 
 ## [0.2.9] - 2020-09-28
 
