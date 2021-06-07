@@ -59,3 +59,17 @@ mod module {
 	pub struct name(member_type);
 }
 //item_end
+
+// Tests only the module name is disambiguated and not any identifiers used inside it.
+#[duplicate::duplicate(
+	[
+		name [SomeName41]
+	]
+	[
+		name [SomeName42]
+	]
+)]//duplicate_end
+mod module {
+	pub struct module();
+}
+//item_end

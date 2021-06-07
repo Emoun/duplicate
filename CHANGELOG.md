@@ -18,9 +18,11 @@ The specific delimiters required now follow the use of delimiters in previous do
 See  [#25](https://github.com/Emoun/duplicate/issues/25).
 - Substituted the `convert_case` dependency for `heck`. See [#22](https://github.com/Emoun/duplicate/issues/22).
 
+
 ### Fixed
 
 - Now also substitutes code inside substitution arguments. See [#24](https://github.com/Emoun/duplicate/issues/24).
+- Module_disambiguation: Now only substitutes the module name and not any matching identifier in the body of the module. See [#27](https://github.com/Emoun/duplicate/issues/27).
 
 ## [0.2.9] - 2020-09-28
 

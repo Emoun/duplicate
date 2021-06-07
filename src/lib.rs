@@ -662,14 +662,20 @@
 //! ```
 //!
 //! This works because the three duplicate modules get assigned unique names:
-//! `module_u8`, `module_u16`, and `module_u32`. This only works if a
+//! `module_u8`, `module_u16`, and `module_u32`. However, this only works if a
 //! substitution identifier can be found, where all its substitutions only
 //! produce a single identifier and nothing else. Those identifiers are then
 //! converted to snake case, and postfixed to the original module's name,
 //! e.g., `module  + u8 = module_u8`. The first suitable substitution
-//! identifier is chosen. Note that the exact way we generate the unique names
-//! is not part of any stability guarantee and should not be depended upon.
-//! It may change in the future without bumping the major version.
+//! identifier is chosen.
+//!
+//! Notes:
+//!
+//! * The exact way unique names are generated is not part of any stability
+//!   guarantee and should not be depended upon. It may change in the future
+//!   without bumping the major version.
+//! * Only the name of the module is substituted with the disambiguated name.
+//!   Any matching identifier in the body of the module is ignored.
 //!
 //! ### `pretty_errors`
 //! __More Detailed Error Messages__ (Enabled by default)
@@ -703,8 +709,6 @@ mod parse_utils;
 mod substitute;
 
 use crate::parse_utils::{next_token, parse_group};
-#[cfg(feature = "module_disambiguation")]
-use module_disambiguation::*;
 use parse::*;
 use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 #[cfg(feature = "pretty_errors")]
@@ -1113,33 +1117,8 @@ pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 /// `allow_short`: If true, accepts short syntax
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (Span, String)>
 {
-	#[allow(unused_mut)]
-	let mut dup_def = parse_invocation(attr)?;
+	let dup_def = parse_invocation(attr)?;
 
-	if let Some(module) = get_module_name(&item)
-	{
-		if dup_def.duplications[0]
-			.substitution_of(&module.to_string())
-			.is_none()
-		{
-			#[cfg(not(feature = "module_disambiguation"))]
-			{
-				return Err((
-					module.span(),
-					format!(
-						"Duplicating the module '{}' without giving each duplicate a unique \
-						 name.\nHint: Enable the 'duplicate' crate's 'module_disambiguation' \
-						 feature to automatically generate unique module names.",
-						module.to_string()
-					),
-				));
-			}
-			#[cfg(feature = "module_disambiguation")]
-			{
-				disambiguate_module(module, &mut dup_def)?;
-			}
-		}
-	}
 	duplicate_and_substitute(
 		item,
 		&dup_def.global_substitutions,
@@ -1162,30 +1141,6 @@ fn abort(span: Span, msg: &str) -> !
 	{
 		panic!("{}", msg);
 	}
-}
-
-/// Extract the name of the module assuming the given item is a module
-/// declaration.
-///
-/// If not, returns None.
-fn get_module_name(item: &TokenStream) -> Option<Ident>
-{
-	let mut iter = item.clone().into_iter().peekable();
-
-	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, Span::call_site(), "").ok()?
-	{
-		if mod_keyword.to_string() == "mod"
-		{
-			if let TokenTree::Ident(module) = next_token(&mut iter, Span::call_site(), "").ok()?
-			{
-				if parse_group(&mut iter, Delimiter::Brace, Span::call_site(), "").is_ok()
-				{
-					return Some(module);
-				}
-			}
-		}
-	}
-	None
 }
 
 #[derive(Debug)]
@@ -1258,4 +1213,68 @@ struct DuplicationDefinition
 {
 	pub global_substitutions: SubstitutionGroup,
 	pub duplications: Vec<SubstitutionGroup>,
+}
+
+/// Checks whether item is a module and whether it then needs disambiguation.
+///
+/// Returns the identifier of the found module (if found) and the substitution
+/// identifier that should be used to disambiguate it in each duplicate.
+/// Returns none if no disambiguation is needed.
+pub(crate) fn disambiguate_module<'a>(
+	item: &TokenStream,
+	sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
+) -> Result<Option<(Ident, String)>, (Span, String)>
+{
+	let mut sub_groups = sub_groups.peekable();
+
+	match (sub_groups.peek(), get_module_name(&item))
+	{
+		(Some(sub), Some(ref module)) if sub.substitution_of(&module.to_string()).is_none() =>
+		{
+			#[cfg(not(feature = "module_disambiguation"))]
+			{
+				Err((
+					module.span(),
+					format!(
+						"Duplicating the module '{}' without giving each duplicate a unique \
+						 name.\nHint: Enable the 'duplicate' crate's 'module_disambiguation' \
+						 feature to automatically generate unique module names.",
+						module.to_string()
+					),
+				))
+			}
+			#[cfg(feature = "module_disambiguation")]
+			{
+				let span = module.span();
+				Ok(Some((
+					module.clone(),
+					crate::module_disambiguation::find_simple(sub_groups, span)?,
+				)))
+			}
+		},
+		_ => Ok(None),
+	}
+}
+/// Extract the name of the module assuming the given item is a module
+/// declaration.
+///
+/// If not, returns None.
+fn get_module_name(item: &TokenStream) -> Option<Ident>
+{
+	let mut iter = item.clone().into_iter().peekable();
+
+	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, Span::call_site(), "").ok()?
+	{
+		if mod_keyword.to_string() == "mod"
+		{
+			if let TokenTree::Ident(module) = next_token(&mut iter, Span::call_site(), "").ok()?
+			{
+				if parse_group(&mut iter, Delimiter::Brace, Span::call_site(), "").is_ok()
+				{
+					return Some(module);
+				}
+			}
+		}
+	}
+	None
 }

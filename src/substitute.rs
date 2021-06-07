@@ -1,4 +1,6 @@
-use crate::{parse_utils::*, SubstitutionGroup};
+#[cfg(feature = "module_disambiguation")]
+use crate::module_disambiguation::try_substitute_mod;
+use crate::{disambiguate_module, parse_utils::*, SubstitutionGroup};
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 use std::iter::Peekable;
 
@@ -191,26 +193,51 @@ impl Substitution
 pub(crate) fn duplicate_and_substitute<'a>(
 	item: TokenStream,
 	global_subs: &SubstitutionGroup,
-	mut groups: impl Iterator<Item = &'a SubstitutionGroup>,
+	mut sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
 ) -> Result<TokenStream, (Span, String)>
 {
 	let mut result = TokenStream::new();
+	#[allow(unused_variables)]
+	let mod_and_postfix_sub = disambiguate_module(&item, sub_groups.clone())?;
 
-	let mut duplicate_and_substitute_one = |substitutions| -> Result<(), (Span, String)> {
-		let mut item_iter = item.clone().into_iter().peekable();
-		while let Some(stream) = substitute_next_token(&mut item_iter, global_subs, substitutions)?
-		{
-			result.extend(stream);
-		}
-		Ok(())
-	};
+	let mut duplicate_and_substitute_one =
+		|substitutions: &SubstitutionGroup| -> Result<(), (Span, String)> {
+			let mut item_iter = item.clone().into_iter().peekable();
+
+			#[cfg(feature = "module_disambiguation")]
+			let mut substituted_mod = false;
+			loop
+			{
+				#[cfg(feature = "module_disambiguation")]
+				{
+					if !substituted_mod
+					{
+						let stream =
+							try_substitute_mod(&mod_and_postfix_sub, substitutions, &mut item_iter);
+						substituted_mod = !stream.is_empty();
+						result.extend(stream);
+					}
+				}
+
+				if let Some(stream) =
+					substitute_next_token(&mut item_iter, global_subs, substitutions)?
+				{
+					result.extend(stream);
+				}
+				else
+				{
+					break;
+				}
+			}
+			Ok(())
+		};
 
 	// We always want at least 1 duplicate.
 	// If no groups are given, we just want to run the global substitutions
-	let empty_subtitution = SubstitutionGroup::new();
-	duplicate_and_substitute_one(groups.next().unwrap_or(&empty_subtitution))?;
+	let empty_sub = SubstitutionGroup::new();
+	duplicate_and_substitute_one(sub_groups.next().unwrap_or(&empty_sub))?;
 
-	for substitutions in groups
+	for substitutions in sub_groups
 	{
 		duplicate_and_substitute_one(&substitutions)?;
 	}

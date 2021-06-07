@@ -25,3 +25,9 @@ mod module_some_name32 {
 mod module_some_name33 {
     pub struct SomeName33(u64);
 }
+mod module_some_name41 {
+    pub struct module();
+}
+mod module_some_name42 {
+    pub struct module();
+}
