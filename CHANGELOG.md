@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2021-06-08
+
 ### Added
 
 - Global Substitution: Allows substitutions that are applied to all duplicates equally. See [#23](https://github.com/Emoun/duplicate/issues/23).
