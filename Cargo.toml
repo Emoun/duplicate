@@ -28,6 +28,7 @@ doc-comment = "=0.3.3" # Must use '=' because of a lack of MSRV
 default = ["pretty_errors", "module_disambiguation"]
 pretty_errors = ["proc-macro-error"]
 module_disambiguation = ["heck"]
+fail-on-warnings = [] # Forces compilation to fail if any warnings are given. Used in CI.
 
 [package.metadata.docs.rs]
 all-features = true

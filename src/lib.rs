@@ -699,6 +699,8 @@
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
 
+#![cfg_attr(feature = "fail-on-warnings", deny(warnings))]
+
 extern crate proc_macro;
 
 mod crate_readme_test;

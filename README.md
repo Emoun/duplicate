@@ -24,6 +24,8 @@ rustup component add rustfmt
 
 The tests can then be run normally using `cargo test` as seen below.
 
+#### Test Groups
+
 Tests are divided into the following groups:
 
 - `no_features`:
@@ -54,6 +56,18 @@ Tests code in the documentation. Even though some of the other test groups might
 ```
 cargo test --doc --all-features
 ```
+
+#### Warnings
+
+Compilation warnings are prohibited in this crate and cause CI failure.
+However, this prohibition of off by default in the code to allow for warnings while work is still in progress.
+
+To make compilation fail on warnings, simply add `--features=fail-on-warnings` to your build/test command. E.g.:
+
+```
+cargo test default_features:: --features=fail-on-warnings
+```
+
 # Formatting
 
 We use `rustfmt` to manage the formatting of this crate's code.
