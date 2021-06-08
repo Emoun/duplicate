@@ -92,7 +92,7 @@ jobs:
           CRATES_IO_DEPLOY_TOKEN: ${{ secrets.CRATES_IO_DEPLOY_TOKEN }}
         run: cargo login "$CRATES_IO_DEPLOY_TOKEN"
       - name: Publish
-        run: cargo publish --dry-run
+        run: cargo publish
       - name: Update Changelog
         run: |
           # Back to master to clean the changes made during packaging.
