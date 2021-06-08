@@ -1,6 +1,6 @@
 #[cfg(feature = "module_disambiguation")]
 use crate::module_disambiguation::try_substitute_mod;
-use crate::{disambiguate_module, parse_utils::*, SubstitutionGroup};
+use crate::{disambiguate_module, parse_utils::*, Result, SubstitutionGroup};
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 use std::iter::Peekable;
 
@@ -56,8 +56,7 @@ impl Substitution
 	/// The tokens produced by the iterator will be the basis for applying a
 	/// substitution, where each instance of an argument identifier being
 	/// replaced by the arguments passed to the a substitution identifier.
-	pub fn new(arguments: &Vec<String>, stream: impl Iterator<Item = TokenTree>)
-		-> Result<Self, ()>
+	pub fn new(arguments: &Vec<String>, stream: impl Iterator<Item = TokenTree>) -> Result<Self>
 	{
 		let mut substitutions = Vec::new();
 		// Group tokens that aren't substitution identifiers or groups
@@ -109,7 +108,7 @@ impl Substitution
 	}
 
 	/// Apply the substitution, assuming it takes no arguments.
-	pub fn apply_simple(&self, err_span: Span) -> Result<TokenStream, (Span, String)>
+	pub fn apply_simple(&self, err_span: Span) -> Result<TokenStream>
 	{
 		self.apply(&Vec::new(), err_span)
 	}
@@ -118,11 +117,7 @@ impl Substitution
 	///
 	/// The number of arguments must match the exact number accepted by the
 	/// substitution.
-	pub fn apply(
-		&self,
-		arguments: &Vec<TokenStream>,
-		err_span: Span,
-	) -> Result<TokenStream, (Span, String)>
+	pub fn apply(&self, arguments: &Vec<TokenStream>, err_span: Span) -> Result<TokenStream>
 	{
 		if arguments.len() == self.arg_count
 		{
@@ -194,43 +189,41 @@ pub(crate) fn duplicate_and_substitute<'a>(
 	item: TokenStream,
 	global_subs: &SubstitutionGroup,
 	mut sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
-) -> Result<TokenStream, (Span, String)>
+) -> Result<TokenStream>
 {
 	let mut result = TokenStream::new();
 	#[allow(unused_variables)]
 	let mod_and_postfix_sub = disambiguate_module(&item, sub_groups.clone())?;
 
-	let mut duplicate_and_substitute_one =
-		|substitutions: &SubstitutionGroup| -> Result<(), (Span, String)> {
-			let mut item_iter = item.clone().into_iter().peekable();
+	let mut duplicate_and_substitute_one = |substitutions: &SubstitutionGroup| -> Result<()> {
+		let mut item_iter = item.clone().into_iter().peekable();
 
+		#[cfg(feature = "module_disambiguation")]
+		let mut substituted_mod = false;
+		loop
+		{
 			#[cfg(feature = "module_disambiguation")]
-			let mut substituted_mod = false;
-			loop
 			{
-				#[cfg(feature = "module_disambiguation")]
+				if !substituted_mod
 				{
-					if !substituted_mod
-					{
-						let stream =
-							try_substitute_mod(&mod_and_postfix_sub, substitutions, &mut item_iter);
-						substituted_mod = !stream.is_empty();
-						result.extend(stream);
-					}
-				}
-
-				if let Some(stream) =
-					substitute_next_token(&mut item_iter, global_subs, substitutions)?
-				{
+					let stream =
+						try_substitute_mod(&mod_and_postfix_sub, substitutions, &mut item_iter);
+					substituted_mod = !stream.is_empty();
 					result.extend(stream);
 				}
-				else
-				{
-					break;
-				}
 			}
-			Ok(())
-		};
+
+			if let Some(stream) = substitute_next_token(&mut item_iter, global_subs, substitutions)?
+			{
+				result.extend(stream);
+			}
+			else
+			{
+				break;
+			}
+		}
+		Ok(())
+	};
 
 	// We always want at least 1 duplicate.
 	// If no groups are given, we just want to run the global substitutions
@@ -251,7 +244,7 @@ fn substitute_next_token(
 	tree: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	global_subs: &SubstitutionGroup,
 	substitutions: &SubstitutionGroup,
-) -> Result<Option<TokenStream>, (Span, String)>
+) -> Result<Option<TokenStream>>
 {
 	let mut result = None;
 	match tree.next()

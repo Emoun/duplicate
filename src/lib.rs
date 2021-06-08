@@ -1114,10 +1114,14 @@ pub fn duplicate_inline(stream: TokenStream) -> TokenStream
 	}
 }
 
+/// A result that specified where in the token stream the error occured
+/// and is accompanied by a message.
+type Result<T> = std::result::Result<T, (Span, String)>;
+
 /// Implements the macro.
 ///
 /// `allow_short`: If true, accepts short syntax
-fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream, (Span, String)>
+fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 {
 	let dup_def = parse_invocation(attr)?;
 
@@ -1164,8 +1168,7 @@ impl SubstitutionGroup
 		}
 	}
 
-	fn add_substitution(&mut self, ident: Ident, subst: Substitution)
-		-> Result<(), (Span, String)>
+	fn add_substitution(&mut self, ident: Ident, subst: Substitution) -> Result<()>
 	{
 		if self
 			.substitutions
@@ -1225,7 +1228,7 @@ struct DuplicationDefinition
 pub(crate) fn disambiguate_module<'a>(
 	item: &TokenStream,
 	sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
-) -> Result<Option<(Ident, String)>, (Span, String)>
+) -> Result<Option<(Ident, String)>>
 {
 	let mut sub_groups = sub_groups.peekable();
 

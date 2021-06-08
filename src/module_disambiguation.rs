@@ -1,4 +1,4 @@
-use crate::SubstitutionGroup;
+use crate::{Result, SubstitutionGroup};
 use heck::SnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 use std::iter::Peekable;
@@ -8,7 +8,7 @@ use std::iter::Peekable;
 pub(crate) fn find_simple<'a>(
 	substitutions: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
 	mod_span: Span,
-) -> Result<String, (Span, String)>
+) -> Result<String>
 {
 	let mut substitutions = substitutions.peekable();
 	if substitutions.peek().is_none()

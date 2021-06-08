@@ -1,7 +1,7 @@
 use crate::{
 	parse_utils::*,
 	substitute::{duplicate_and_substitute, Substitution},
-	DuplicationDefinition, SubstitutionGroup,
+	DuplicationDefinition, Result, SubstitutionGroup,
 };
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
 use std::{collections::HashSet, iter::Peekable};
@@ -13,7 +13,7 @@ use std::{collections::HashSet, iter::Peekable};
 /// substitutions that should be applied to all duplicates but don't on their
 /// own indicate a duplicate. Then comes a list of substitution groups, each of
 /// which indicates on duplicate.
-pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinition, (Span, String)>
+pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinition>
 {
 	let mut iter = attr.into_iter().peekable();
 
@@ -82,7 +82,7 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 /// which starts the same way as a global substitution.
 fn validate_global_substitutions(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
-) -> Result<(SubstitutionGroup, Option<(Ident, Option<Group>)>), (Span, String)>
+) -> Result<(SubstitutionGroup, Option<(Ident, Option<Group>)>)>
 {
 	let mut sub_group = SubstitutionGroup::new();
 	loop
@@ -112,7 +112,7 @@ fn validate_global_substitutions(
 fn validate_verbose_invocation(
 	iter: impl Iterator<Item = TokenTree>,
 	err_on_no_subs: bool,
-) -> Result<Vec<SubstitutionGroup>, (Span, String)>
+) -> Result<Vec<SubstitutionGroup>>
 {
 	let mut iter = iter.peekable();
 	if err_on_no_subs && iter.peek().is_none()
@@ -168,7 +168,7 @@ fn validate_verbose_invocation(
 /// substitution, the identifier is returned on its own.
 fn extract_inline_substitution(
 	stream: &mut Peekable<impl Iterator<Item = TokenTree>>,
-) -> Result<(Ident, Result<Substitution, Option<Group>>), (Span, String)>
+) -> Result<(Ident, std::result::Result<Substitution, Option<Group>>)>
 {
 	let token = peek_next_token(stream, Span::call_site(), "Substitution identifier")?;
 
@@ -218,7 +218,7 @@ fn extract_inline_substitution(
 fn extract_verbose_substitutions(
 	tree: TokenTree,
 	existing: &Option<HashSet<(String, usize)>>,
-) -> Result<SubstitutionGroup, (Span, String)>
+) -> Result<SubstitutionGroup>
 {
 	// Must get span now, before it's corrupted.
 	let tree_span = tree.span();
@@ -291,7 +291,7 @@ fn extract_verbose_substitutions(
 /// substitution that should be made.
 fn validate_short_attr(
 	iter: impl Iterator<Item = TokenTree>,
-) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>, (Span, String)>
+) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>>
 {
 	let mut iter = iter.peekable();
 
@@ -310,7 +310,7 @@ fn validate_short_attr(
 fn validate_short_get_identifiers(
 	iter: &mut impl Iterator<Item = TokenTree>,
 	mut span: Span,
-) -> Result<(Vec<(String, Vec<String>)>, Span), (Span, String)>
+) -> Result<(Vec<(String, Vec<String>)>, Span)>
 {
 	let mut iter = iter.peekable();
 	let mut result = Vec::new();
@@ -337,7 +337,7 @@ fn validate_short_get_identifiers(
 /// Assuming use of the short syntax, gets the list of identifier arguments.
 fn validate_short_get_identifier_arguments(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
-) -> Result<Vec<String>, (Span, String)>
+) -> Result<Vec<String>>
 {
 	if let Some(token) = iter.peek()
 	{
@@ -361,7 +361,7 @@ fn validate_short_get_all_substitution_goups<'a>(
 	iter: impl Iterator<Item = TokenTree>,
 	mut span: Span,
 	result: &mut Vec<(String, Vec<String>, Vec<TokenStream>)>,
-) -> Result<(), (Span, String)>
+) -> Result<()>
 {
 	let mut iter = iter.peekable();
 	loop
@@ -420,7 +420,7 @@ fn validate_short_get_substitutions<'a>(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	mut span: Span,
 	mut groups: impl Iterator<Item = &'a mut TokenStream>,
-) -> Result<Span, (Span, String)>
+) -> Result<Span>
 {
 	if let Some(token) = iter.next()
 	{
@@ -444,7 +444,7 @@ fn validate_short_get_substitutions<'a>(
 fn invoke_nested(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	span: Span,
-) -> Result<TokenStream, (Span, String)>
+) -> Result<TokenStream>
 {
 	let hints = "Hint: '#' is a nested invocation of the macro and must therefore be followed by \
 	             a group containing the invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \

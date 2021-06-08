@@ -1,3 +1,4 @@
+use crate::Result;
 use proc_macro::{Delimiter, Group, Punct, Spacing, Span, TokenTree};
 use std::iter::Peekable;
 
@@ -5,12 +6,7 @@ use std::iter::Peekable;
 ///
 /// Always returns Err(..) with an error message composed of the prefix,
 /// expected delimiter span, and given hints.
-pub fn group_err<T>(
-	span: Span,
-	prefix: &str,
-	expected: Delimiter,
-	hints: &str,
-) -> Result<T, (Span, String)>
+pub fn group_err<T>(span: Span, prefix: &str, expected: Delimiter, hints: &str) -> Result<T>
 {
 	Err((
 		span,
@@ -41,7 +37,7 @@ pub fn parse_group(
 	del: Delimiter,
 	parent_span: Span,
 	hints: &str,
-) -> Result<Group, (Span, String)>
+) -> Result<Group>
 {
 	let result = peek_parse_group(iter, del, parent_span, hints);
 
@@ -57,7 +53,7 @@ pub fn peek_parse_group(
 	del: Delimiter,
 	parent_span: Span,
 	hints: &str,
-) -> Result<Group, (Span, String)>
+) -> Result<Group>
 {
 	if let Some(tree) = iter.peek()
 	{
@@ -86,7 +82,7 @@ pub fn peek_parse_group(
 /// returns it.
 ///
 /// If not, issues an error, adding the given hints to the error message.
-pub fn check_group(tree: TokenTree, del: Delimiter, hints: &str) -> Result<Group, (Span, String)>
+pub fn check_group(tree: TokenTree, del: Delimiter, hints: &str) -> Result<Group>
 {
 	if let TokenTree::Group(group) = tree
 	{
@@ -102,7 +98,7 @@ pub fn check_group(tree: TokenTree, del: Delimiter, hints: &str) -> Result<Group
 /// Checks that the given group's delimiter is the given one.
 ///
 /// If not, returns an error.
-pub fn check_delimiter(group: &Group, del: Delimiter) -> Result<(), (Span, String)>
+pub fn check_delimiter(group: &Group, del: Delimiter) -> Result<()>
 {
 	if group.delimiter() != del
 	{
@@ -143,7 +139,7 @@ pub fn next_token(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	parent_span: Span,
 	expected: &str,
-) -> Result<TokenTree, (Span, String)>
+) -> Result<TokenTree>
 {
 	let result = peek_next_token(iter, parent_span, expected);
 	if result.is_ok()
@@ -165,7 +161,7 @@ pub fn peek_next_token(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
 	parent_span: Span,
 	expected: &str,
-) -> Result<TokenTree, (Span, String)>
+) -> Result<TokenTree>
 {
 	let make_err = |span, msg| Err((span, format!("{}\nExpected: {}", msg, expected)));
 	if let Some(token) = iter.peek()
@@ -213,7 +209,7 @@ pub fn peek_next_token(
 
 /// Extracts a list of arguments from the given group.
 /// The list is expected to be of comma-separated identifiers.
-pub fn extract_argument_list(group: &Group) -> Result<Vec<String>, (Span, String)>
+pub fn extract_argument_list(group: &Group) -> Result<Vec<String>>
 {
 	let mut result = Vec::new();
 	let mut arg_iter = group.stream().into_iter();
