@@ -30,16 +30,16 @@ runs:
         rustup default ${{ inputs.rust-version }}
     - run: echo "::group::Test no_features"
       shell: bash
-    - run: "cargo test ${{ inputs.additional-arguments }} --no-default-features -- --skip default_features::"
+    - run: "cargo test ${{ inputs.additional-arguments }} --no-default-features"
       shell: bash
     - run: echo "::group::Test module_disambiguation"
       shell: bash
       # Only test module_disambiguation for non 1.34 rust.
-    - run: "${{(inputs.rust-version == '1.34.2')}} || cargo test --no-default-features --features module_disambiguation ${{ inputs.additional-arguments }} -- --skip default_features::"
+    - run: "${{(inputs.rust-version == '1.34.2')}} || cargo test --no-default-features --features module_disambiguation ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test pretty_errors"
       shell: bash
-    - run: "cargo test --no-default-features --features pretty_errors  ${{ inputs.additional-arguments }} -- --skip default_features::"
+    - run: "cargo test --no-default-features --features pretty_errors  ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test Default Features"
       shell: bash
@@ -48,7 +48,7 @@ runs:
       shell: bash
     - run: echo "::group::Test All Features"
       shell: bash
-    - run: "cargo test --no-default-features --features pretty_errors,${{ inputs.feature-non-34 }} ${{ inputs.additional-arguments }} -- --skip default_features::"
+    - run: "cargo test --no-default-features --features pretty_errors,${{ inputs.feature-non-34 }} ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test Documentation Code"
       shell: bash

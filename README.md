@@ -28,27 +28,25 @@ The tests can then be run normally using `cargo test` as seen below.
 
 Tests are divided into the following groups:
 
-- `no_features`:
+- `No Features`:
 Tests the minimal API of the crate with no features enabled. 
 
 ```
-cargo test --no-default-features -- --skip default_features::
+cargo test --no-default-features
 ```
 
-- `default_features`: 
-Test that the correct features are enabled by default.
-This is to ensure a change doesn't change which features are on by default.
-However, this does not test the features themselves.
+- `Default Features`: 
+Test that the features that are enabled by default.
 
 ```
-cargo test default_features::
+cargo test
 ```
 
-- `features`:
+- `All Feature Combinations`:
 Tests any combination of features. After `--features` add a comma separated list of features to test:
 
 ```
-cargo test --features module_disambiguation,pretty_errors -- --skip default_features::
+cargo test --no-default-features --features module_disambiguation,pretty_errors
 ```
 
 - `documentation`:
@@ -65,7 +63,7 @@ However, this prohibition of off by default in the code to allow for warnings wh
 To make compilation fail on warnings, simply add `--features=fail-on-warnings` to your build/test command. E.g.:
 
 ```
-cargo test default_features:: --features=fail-on-warnings
+cargo test --features=fail-on-warnings
 ```
 
 # Formatting
