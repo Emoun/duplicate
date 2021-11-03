@@ -36,7 +36,7 @@ const fn get_features() -> [&'static str; NR_FEATURES]
 /// Expansion test live in a home directory. This directory has a single
 /// testing sub-directory that is used during the test. Temporary testing
 /// files are put in the testing directory before each test but not removed
-/// after. (They may be deleted before each test, through)
+/// after. (They may be deleted before each test, though)
 ///
 /// The tester is configured to generate files in the testing directory from
 /// files in source directories (sub-directories of the home).
@@ -49,7 +49,8 @@ pub struct ExpansionTester<'a>
 	dir: &'a str,
 	/// The subdirectory (of the home) where test files may be put
 	testing_dir: &'a str,
-	/// Source sub-directory, and how ea
+	/// Source sub-directory, and how it's files should be treated before
+	/// testing
 	source_dirs: Vec<(&'a str, Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>)>,
 }
 
@@ -163,7 +164,7 @@ impl<'a> ExpansionTester<'a>
 	///   `//item_end` on
 	/// its own.
 	///
-	/// This action will them generate 2 versions of this file. The first is
+	/// This action will then generate 2 versions of this file. The first is
 	/// almost identical the original, but the second will change the invocation
 	/// to instead use `duplicate_inline`. It uses the exact rules specified
 	/// above to correctly change the code, so any small deviation from the
@@ -190,6 +191,7 @@ impl<'a> ExpansionTester<'a>
 	/// pub struct name();
 	/// ```
 	/// Second version (`inline_test.expanded.rs`):
+	/// ```
 	/// duplicate::duplicate_inline{
 	///   [
 	///     name;
@@ -248,5 +250,30 @@ impl<'a> ExpansionTester<'a>
 				dest_inline_file.write_all("\n".as_bytes()).unwrap();
 			}
 		})
+	}
+
+	/// Sets up and runs tests in a specific directory using our standard test
+	/// setup.
+	pub fn run_default_test_setup(home_dir: &str, test_subdir: &str)
+	{
+		let mut test = ExpansionTester::new(home_dir, test_subdir);
+		test.add_source_dir("from", vec![ExpansionTester::duplicate_for_inline()]);
+		test.add_source_dir(
+			"expected",
+			vec![
+				ExpansionTester::copy(),
+				ExpansionTester::copy_with_prefix("inline_"),
+			],
+		);
+		test.add_source_dir(
+			"expected_both",
+			vec![
+				ExpansionTester::copy_with_prefix("inline_short_"),
+				ExpansionTester::copy_with_prefix("inline_verbose_"),
+				ExpansionTester::copy_with_prefix("short_"),
+				ExpansionTester::copy_with_prefix("verbose_"),
+			],
+		);
+		test.execute_tests();
 	}
 }
