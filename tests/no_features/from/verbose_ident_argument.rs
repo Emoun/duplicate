@@ -30,42 +30,42 @@ fn fn_name<'a>(arg: refs([Vec<i32>])){}
 #[duplicate::duplicate(
 	[
 		fn_name					[fn_const_3]
-		refs(lifetime, type)	[& lifetime type]
+		refs(lifetime, type)	[& 'lifetime type]
 	]
 	[
 		fn_name					[fn_mut_3]
-		refs(lifetime, type)	[& lifetime mut type]
+		refs(lifetime, type)	[& 'lifetime mut type]
 	]
 )]//duplicate_end
-fn fn_name<'a>(arg: refs(['a],[i32])){}
+fn fn_name<'a>(arg: refs([a],[i32])){}
 //item_end
 
 // Test multi-argument identifier and multi-token arguments
 #[duplicate::duplicate(
 	[
 		fn_name					[fn_const_4]
-		refs(lifetime, type)	[& lifetime type]
+		refs(lifetime, type)	[& 'lifetime type]
 	]
 	[
 		fn_name					[fn_mut_4]
-		refs(lifetime, type)	[& lifetime mut type]
+		refs(lifetime, type)	[& 'lifetime mut type]
 	]
 )]//duplicate_end
-fn fn_name<'a>(arg: refs(['a],[Result<i32,u8>],)){}
+fn fn_name<'a>(arg: refs([a],[Result<i32,u8>],)){}
 //item_end
 
 // Test multiple invocations of identifiers with arguments
 #[duplicate::duplicate(
 	[
 		fn_name					[fn_const_5]
-		refs(lifetime, type)	[& lifetime type]
+		refs(lifetime, type)	[& 'lifetime type]
 	]
 	[
 		fn_name					[fn_mut_5]
-		refs(lifetime, type)	[& lifetime mut type]
+		refs(lifetime, type)	[& 'lifetime mut type]
 	]
 )]//duplicate_end
-fn fn_name<'a>(arg: refs(['a], [Result<i32,u8>],))  -> refs(['a], [i32]) {}
+fn fn_name<'a>(arg: refs([a], [Result<i32,u8>],))  -> refs([a], [i32]) {}
 //item_end
 
 // Test the same identifier argument can have different names in different substitution groups.
