@@ -7,7 +7,7 @@
 
 macro_rules! test_ident_from_macro_variable{
 	{ $name:ident } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeName1]
 			]
@@ -20,7 +20,7 @@ test_ident_from_macro_variable!(name);
 
 macro_rules! test_2_idents_from_macro_variable{
 	{ $($idents:ident)*,  $($tts:tt)*} => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$($idents[$tts])*
 			]
@@ -33,7 +33,7 @@ test_2_idents_from_macro_variable!(name member, SomeName2 SomeMember2);
 
 macro_rules! test_ident_from_macro_path_variable{
 	{ $name:path } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeMember3]
 			]
@@ -46,7 +46,7 @@ test_ident_from_macro_path_variable!(name);
 
 macro_rules! test_ident_from_macro_expr_variable{
 	{ $name:expr } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeValue4]
 			]
@@ -59,7 +59,7 @@ test_ident_from_macro_expr_variable!(name);
 
 macro_rules! test_ident_from_macro_type_variable{
 	{ $name:ty } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeMember5]
 			]
@@ -72,7 +72,7 @@ test_ident_from_macro_type_variable!(name);
 
 macro_rules! test_ident_from_macro_pattern_variable{
 	{ $name:pat } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeName6]
 			]
@@ -87,7 +87,7 @@ test_ident_from_macro_pattern_variable!(name);
 
 macro_rules! test_ident_from_macro_statement_variable{
 	{ $name:stmt } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeName7]
 			]
@@ -102,7 +102,7 @@ test_ident_from_macro_statement_variable!(name);
 
 macro_rules! test_ident_from_macro_token_tree_variable{
 	{ $name:tt } => {
-		#[duplicate::duplicate(
+		#[duplicate::duplicate_item(
 			[
 				$name	[SomeName8]
 			]

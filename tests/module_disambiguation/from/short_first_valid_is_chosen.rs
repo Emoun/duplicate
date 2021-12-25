@@ -4,7 +4,7 @@
 // is pseudo-random, most likely at least one of them will fail.
 
 // Test 1
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	name			member_type;
 	[SomeName11]	[u8];
 	[SomeName12]	[u32];
@@ -16,7 +16,7 @@ mod module {
 //item_end
 
 // Test 1, reversed
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	member_type	name;
 	[u8]		[SomeName21];
 	[u32]		[SomeName22];
@@ -28,7 +28,7 @@ mod module {
 //item_end
 
 // Test 2, the names have been changed from test 1 to have reverse alphabetical order
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	a_name			b_member_type;
 	[SomeName31]	[u8];
 	[SomeName32]	[u32];
@@ -40,7 +40,7 @@ mod module {
 //item_end
 
 // Test 2, reversed
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	b_member_type	a_name;
 	[u8]			[SomeName41];
 	[u32]			[SomeName42];
@@ -52,7 +52,7 @@ mod module {
 //item_end
 
 // Test 3, 3 valid identifers
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	name			member_type	last_identifier;
 	[SomeName51]	[u8]		[OtherIdent];
 	[SomeName52]	[u32]		[AnotherIdent];
@@ -64,7 +64,7 @@ mod module {
 //item_end
 
 // Test 3, permutation 2
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	member_type	last_identifier 							name;
 	[u8]		[OtherIdent]								[SomeName61];
 	[u32]		[AnotherIdent]								[SomeName62];
@@ -76,7 +76,7 @@ mod module {
 //item_end
 
 // Test 3, permutation 3
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	last_identifier 							name			member_type;
 	[OtherIdent]								[SomeName71]	[u8];
 	[AnotherIdent]								[SomeName72]	[u32];

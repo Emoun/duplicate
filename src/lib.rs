@@ -1,15 +1,15 @@
 //! This crate provides macros for easy code duplication with substitution:
 //!
-//! - [`duplicate`]: Attribute macro.
-//! - [`duplicate_inline`]: Function-like procedural macro.
+//! - [`duplicate_item`]: Attribute macro.
+//! - [`duplicate`]: Function-like procedural macro.
 //!
 //! The only major difference between the two is where you can use them.
 //! Therefore, the following section presents how to use
-//! [`duplicate`] only. Refer to [`duplicate_inline`]'s documentation for how it
+//! [`duplicate_item`] only. Refer to [`duplicate`]'s documentation for how it
 //! defers from what is specified below.
 //!
-//! [`duplicate`]: attr.duplicate.html
-//! [`duplicate_inline`]: macro.duplicate_inline.html
+//! [`duplicate_item`]: attr.duplicate_item.html
+//! [`duplicate`]: macro.duplicate.html
 //! # Usage
 //!
 //! Say you have a trait with a method `is_max` that should return `true` if the
@@ -43,13 +43,13 @@
 //! This is a lot of repetition. Only the type and the maximum value are
 //! actually different between the three implementations. This might not be much
 //! in our case, but imagine doing this for all the integer types (10, as of the
-//! last count.) We can use the `duplicate` attribute to avoid repeating
+//! last count.) We can use the `duplicate_item` attribute to avoid repeating
 //! ourselves:
 //!
 //! ```
 //! # trait IsMax {fn is_max(&self) -> bool;}
-//! use duplicate::duplicate;
-//! #[duplicate(
+//! use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   int_type  max_value;
 //!   [ u8 ]    [ 255 ];
 //!   [ u16 ]   [ 65_535 ];
@@ -116,10 +116,10 @@
 //! The following `impl` is identical to the above code:
 //!
 //! ```
-//! # use duplicate::duplicate;
+//! # use duplicate::duplicate_item;
 //! # struct VecWrap<T>(Vec<T>);
 //! impl<T> VecWrap<T> {
-//!   #[duplicate(
+//!   #[duplicate_item(
 //!     method     reference(type);
 //!     [get]      [& type];
 //!     [get_mut]  [&mut type];
@@ -134,8 +134,8 @@
 //! # assert_eq!(*vec.get(1).unwrap(), 5);
 //! ```
 //!
-//! In a `duplicate` invocation, if a substitution identifier is followed by
-//! parenthises containing a list of parameters, they can be used in the
+//! In a `duplicate_item` invocation, if a substitution identifier is followed
+//! by parenthises containing a list of parameters, they can be used in the
 //! substitution. In this example, the `reference` identifier takes 1 parameter
 //! named `type`, which is used in the substitutions to create either a shared
 //! reference to the type or a mutable one. When using the `reference` in the
@@ -148,10 +148,10 @@
 //! We can use this if we need to also provide the references with a lifetime:
 //!
 //! ```
-//! # use duplicate::duplicate;
+//! # use duplicate::duplicate_item;
 //! # struct VecWrap<T>(Vec<T>);
 //! impl<T> VecWrap<T> {
-//!   #[duplicate(
+//!   #[duplicate_item(
 //!     method     reference(lifetime, type);
 //!     [get]      [& 'lifetime type];
 //!     [get_mut]  [& 'lifetime mut type];
@@ -191,7 +191,7 @@
 //! present in the substitution before the 	lifetime: `[& 'lifetime type]`.
 //! This is because the rust syntax disallows lifetimes in brackets on their
 //! own. Our solution is therefore a hacking of the system and not a property of
-//! `duplicate` itself.
+//! `duplicate_item` itself.
 //!
 //! ## Nested Invocation
 //!
@@ -255,8 +255,8 @@
 //! something like this:
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   int_type implementation;
 //!   [u8]     [false];
 //!   [u16]    [false];
@@ -285,8 +285,8 @@
 //!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   int_type implementation;
 //!   #[
 //!     int_type_nested; [u8]; [u16]; [u32]
@@ -332,8 +332,8 @@
 //!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   int_type implementation;
 //!   #[                                     // -+
 //!     int_type_nested; [u8]; [u16]; [u32]  //  | Nested invocation producing 3
@@ -364,14 +364,14 @@
 //! ## Verbose Syntax
 //!
 //! The syntax used in the previous examples is the _short syntax_.
-//! `duplicate` also accepts a _verbose syntax_ that is less concise, but more
-//! readable in some circumstances. Using the verbose syntax, the very first
-//! example above looks like this:
+//! `duplicate_item` also accepts a _verbose syntax_ that is less concise, but
+//! more readable in some circumstances. Using the verbose syntax, the very
+//! first example above looks like this:
 //!
 //! ```
 //! # trait IsMax {fn is_max(&self) -> bool;}
-//! use duplicate::duplicate;
-//! #[duplicate(
+//! use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   [
 //!     int_type  [ u8 ]
 //!     max_value [ 255 ]
@@ -402,8 +402,8 @@
 //!
 //! ```
 //! # trait IsMax {fn is_max(&self) -> bool;}
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   [                               //-+
 //!     int_type  [ u8 ]              // | Substitution group 1
 //!     max_value [ 255 ]             // |
@@ -450,8 +450,8 @@
 //!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   #[
 //!     int_type_nested; [u8]; [u16]; [u32]
 //!   ][
@@ -536,8 +536,8 @@
 //! # struct To();
 //! # struct Repeat();
 //! # struct Other();
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
 //!   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
 //! )]
@@ -569,8 +569,8 @@
 //! # struct To();
 //! # struct Repeat();
 //! # struct Other();
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
 //!   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
 //!   method     reference(type);
@@ -608,8 +608,8 @@
 //! ### `module_disambiguation`
 //! __Implicit Module Name Disambiguation__ (Enabled by default)
 //!
-//! It is sometime beneficial to apply `duplicate` to a module, such that all
-//! its contents are duplicated at once. However, this will always need the
+//! It is sometime beneficial to apply `duplicate_item` to a module, such that
+//! all its contents are duplicated at once. However, this will always need the
 //! resulting modules to have unique names to avoid the compiler issueing an
 //! error. Without `module_disambiguation`, module names must be substituted
 //! manually. With `module_disambiguation`, the following will compile
@@ -618,8 +618,8 @@
 //! ```
 //! # #[cfg(feature="module_disambiguation")] // Ensure test is only run if feature is on
 //! # {
-//! # use duplicate::duplicate;
-//! #[duplicate(
+//! # use duplicate::duplicate_item;
+//! #[duplicate_item(
 //!   int_type  max_value;
 //!   [ u8 ]    [ 255 ];
 //!   [ u16 ]   [ 65_535 ];
@@ -723,12 +723,12 @@ use substitute::*;
 ///
 /// # Short Syntax
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// trait IsMax {
 ///   fn is_max(&self) -> bool;
 /// }
 ///
-/// #[duplicate(
+/// #[duplicate_item(
 ///   int_type  max_value;
 ///   [ u8 ]    [ 255 ];
 ///   [ u16 ]   [ 65_535 ];
@@ -760,12 +760,12 @@ use substitute::*;
 /// # Verbose Syntax
 ///
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// trait IsMax {
 ///   fn is_max(&self) -> bool;
 /// }
 ///
-/// #[duplicate(
+/// #[duplicate_item(
 ///   [
 ///     int_type  [ u8 ]
 ///     max_value [ 255 ]
@@ -801,11 +801,11 @@ use substitute::*;
 /// # Parameterized Substitutoin
 ///
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// struct VecWrap<T>(Vec<T>);
 ///
 /// impl<T> VecWrap<T> {
-///   #[duplicate(
+///   #[duplicate_item(
 ///     method     reference(lifetime, type);
 ///     [get]      [& 'lifetime type];
 ///     [get_mut]  [& 'lifetime mut type];
@@ -836,10 +836,10 @@ use substitute::*;
 /// Parameterized substitution is also available for the verbose syntax:
 ///
 /// ```
-/// # use duplicate::duplicate;
+/// # use duplicate::duplicate_item;
 /// # struct VecWrap<T>(Vec<T>);
 /// impl<T> VecWrap<T> {
-///   #[duplicate(
+///   #[duplicate_item(
 ///     [
 ///       method                     [get]
 ///       reference(lifetime, type)  [& 'lifetime type]
@@ -861,12 +861,12 @@ use substitute::*;
 ///
 /// # Nested Invocation
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// trait IsNegative {
 ///   fn is_negative(&self) -> bool;
 /// }
 ///
-/// #[duplicate(
+/// #[duplicate_item(
 ///   int_type implementation;
 ///   #[                                  // -+
 ///     int_type_nested;[u8];[u16];[u32]  //  | Nested invocation producing 3
@@ -906,11 +906,11 @@ use substitute::*;
 /// invocation:
 ///
 /// ```
-/// # use duplicate::duplicate;
+/// # use duplicate::duplicate_item;
 /// # trait IsNegative {
 /// #   fn is_negative(&self) -> bool;
 /// # }
-/// #[duplicate(
+/// #[duplicate_item(
 ///   int_type implementation;
 ///   [ u8 ]  [ false ];
 ///   [ u16 ] [ false ];
@@ -931,12 +931,12 @@ use substitute::*;
 /// Nested invocation is also available for the verbose syntax:
 ///
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// trait IsNegative {
 ///   fn is_negative(&self) -> bool;
 /// }
 ///
-/// #[duplicate(
+/// #[duplicate_item(
 ///   #[                                  // -+
 ///     int_type_nested;[u8];[u16];[u32]  //  |
 ///   ][                                  //  |
@@ -973,8 +973,8 @@ use substitute::*;
 /// # struct To();
 /// # struct Repeat();
 /// # struct Other();
-/// # use duplicate::duplicate;
-/// #[duplicate(
+/// # use duplicate::duplicate_item;
+/// #[duplicate_item(
 ///   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
 ///   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
 ///   method     reference(type);
@@ -1001,7 +1001,7 @@ use substitute::*;
 /// usable in the invocation itself but only in the code being duplicated.
 #[proc_macro_attribute]
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
-pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
+pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 {
 	match duplicate_impl(attr, item)
 	{
@@ -1013,26 +1013,26 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// Duplicates the given code and substitutes specific identifiers
 /// for different code snippets in each duplicate.
 ///
-/// This is a function-like procedural macro version of [`duplicate`].
+/// This is a function-like procedural macro version of [`duplicate_item`].
 /// It's functionality is the exact same, and they share the same invocation
-/// syntax(es). The only difference is that `duplicate_inline` doesn't only
+/// syntax(es). The only difference is that `duplicate` doesn't only
 /// duplicate the following item, but duplicate all code given to it after the
 /// invocation block.
 ///
 /// ## Usage
 ///
-/// A call to `duplicate_inline` must start with a `[]` containing the
+/// A call to `duplicate` must start with a `[]` containing the
 /// duplication invocation. Everything after that will then be duplicated
 /// according to the invocation.
 ///
-/// Given the following `duplicate_inline` call:
+/// Given the following `duplicate` call:
 /// ```
-/// use duplicate::duplicate_inline;
+/// use duplicate::duplicate;
 /// # trait IsMax {
 /// #   fn is_max(&self) -> bool;
 /// # }
 ///
-/// duplicate_inline!{
+/// duplicate!{
 ///   [
 ///     // Some duplication invocation
 /// #     int_type  max_value;
@@ -1048,7 +1048,7 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// #   }
 /// }
 /// # // We use an explicit 'main' function to ensure the previous
-/// # // 'duplicate_inline' call doesn't get treated as a statement,
+/// # // 'duplicate' call doesn't get treated as a statement,
 /// # // which illegal before rust 1.45.
 /// # fn main() {
 /// #   assert!(!42u8.is_max());
@@ -1056,14 +1056,14 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// #   assert!(!42u32.is_max());
 /// # }
 /// ```
-/// It is equivalent to the following invocation using [`duplicate`]:
+/// It is equivalent to the following invocation using [`duplicate_item`]:
 /// ```
-/// use duplicate::duplicate;
+/// use duplicate::duplicate_item;
 /// # trait IsMax {
 /// #   fn is_max(&self) -> bool;
 /// # }
 ///
-/// #[duplicate(
+/// #[duplicate_item(
 ///   // Some duplication invocation
 /// #   int_type  max_value;
 /// #   [ u8 ]    [ 255 ];
@@ -1081,12 +1081,12 @@ pub fn duplicate(attr: TokenStream, item: TokenStream) -> TokenStream
 /// # assert!(!42u32.is_max());
 /// ```
 ///
-/// For more details on about invocations and features see [`duplicate`].
+/// For more details on about invocations and features see [`duplicate_item`].
 ///
-/// [`duplicate`]: attr.duplicate.html
+/// [`duplicate_item`]: attr.duplicate_item.html
 #[proc_macro]
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
-pub fn duplicate_inline(stream: TokenStream) -> TokenStream
+pub fn duplicate(stream: TokenStream) -> TokenStream
 {
 	let mut iter = stream.into_iter().peekable();
 

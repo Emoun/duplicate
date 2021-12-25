@@ -285,7 +285,7 @@ fn substitute_next_token(
 											if punct_is_char(punct, ',') =>
 										{
 											let _ = group_stream_iter.next();
-										}
+										},
 										Some(t) => return Err((t.span(), "Expected ','".into())),
 										_ => (),
 									}

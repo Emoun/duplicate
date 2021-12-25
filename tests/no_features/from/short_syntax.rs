@@ -1,18 +1,18 @@
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	name;
 	[SomeName];
 )]//duplicate_end
 pub struct name();
 //item_end
 
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	name		member;
 	[SomeName]	[SomeMember]
 )]//duplicate_end
 pub struct name(member);
 //item_end
 
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	name		member;
 	[SomeName]	[SomeMember];
 	[SomeName2]	[SomeMember2];
@@ -20,7 +20,7 @@ pub struct name(member);
 pub struct name(member);
 //item_end
 
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	module ;
 	[ mod1 ];
 	[ mod2 ]
@@ -28,7 +28,7 @@ pub struct name(member);
 mod module {
 	use super::*;
 	
-	#[duplicate::duplicate(
+	#[duplicate::duplicate_item(
 		name		member;
 		[SomeName]	[SomeMember];
 		[SomeName2]	[SomeMember2];
@@ -39,7 +39,7 @@ mod module {
 //item_end
 
 // Test substitution that includes braces
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	fn_name 		var;
 	[ fn_name_1 ]	[ Struct() ];
 	[ fn_name_2 ]	[ array[4] ];

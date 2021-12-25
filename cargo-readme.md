@@ -7,7 +7,7 @@ Crate for easy code duplication with substitution.
 
 If you find yourself in need of copying a block of code and then making some small changes to fit the new use case, this crate is for you.
 
-The `duplicate` attribute macro will duplicate an item any number of times while inserting custom code in the designated places in each duplicate.
+The `duplicate_item` attribute macro will duplicate an item any number of times while inserting custom code in the designated places in each duplicate.
 The `duplicate_inline` function-like procedural macro will do the same for any code you give it.
 
 For an in-depth explanation of the syntax and features, [see the documentation](https://docs.rs/duplicate).
@@ -15,7 +15,7 @@ For an in-depth explanation of the syntax and features, [see the documentation](
 ## Example
 
 ```rust
-use duplicate::duplicate;
+use duplicate::duplicate_item;
 
 /// Trait we want to implement for u8, u16, and u32
 trait IsMax {
@@ -23,7 +23,7 @@ trait IsMax {
   fn is_max(&self) -> bool;
 }
 
-#[duplicate(
+#[duplicate_item(
   int_type  max_value;
   [ u8 ]    [ 255 ];
   [ u16 ]   [ 65_535 ];
@@ -42,7 +42,7 @@ assert!(!42u32.is_max());
 Expands to:
 
 ```rust
-use duplicate::duplicate;
+use duplicate::duplicate_item;
 
 /// Trait we want to implement for u8, u16, and u32
 trait IsMax {

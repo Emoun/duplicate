@@ -1,4 +1,4 @@
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	#[
 		some_name;	[SomeName1];	[SomeName2]
 	][
@@ -14,7 +14,7 @@ pub struct name();
 //item_end
 
 // Test more than one nesting
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	#[
 		some_name;	[SomeName1];	[SomeName2]
 	][
@@ -40,7 +40,7 @@ pub struct name();
 
 // Test 2 substitution groups in nested invocation.
 // Output should be the same as the next test.
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	#[
 		some_name;	[SomeName1];	[SomeName2]
 	][
@@ -59,7 +59,7 @@ pub struct name(member);
 
 // Test nesting depth of 2.
 // Output should be the same as the previous test
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	#[
 		some_name;	[SomeName1];	[SomeName2]
 	][

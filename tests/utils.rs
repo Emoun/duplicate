@@ -152,8 +152,8 @@ impl<'a> ExpansionTester<'a>
 	/// Generates an action that creates two versions of the given file in the
 	/// testing directory. The source file must use the 'duplicate' attribute
 	/// macro, where:
-	/// - The invocation must starts with `#[duplicate::duplicate(` on a the
-	///   first line
+	/// - The invocation must starts with `#[duplicate::duplicate_item(` on a
+	///   the first line
 	/// (with nothing else). Notice that you must not import the attribute but
 	/// use its full path.
 	/// - Then the body of the invocation. Both syntaxes are allowed.
@@ -166,7 +166,7 @@ impl<'a> ExpansionTester<'a>
 	///
 	/// This action will then generate 2 versions of this file. The first is
 	/// almost identical the original, but the second will change the invocation
-	/// to instead use `duplicate_inline`. It uses the exact rules specified
+	/// to instead use `duplicate`. It uses the exact rules specified
 	/// above to correctly change the code, so any small deviation from the
 	/// above rules might result in an error. The name of the first version is
 	/// the same as the original and the second version is prefixed with
@@ -175,7 +175,7 @@ impl<'a> ExpansionTester<'a>
 	/// ### Example
 	/// Original file (`test.rs`):
 	/// ```
-	/// #[duplicate::duplicate(
+	/// #[duplicate::duplicate_item(
 	///   name;
 	///   [SomeName];
 	/// )]//duplicate_end
@@ -184,7 +184,7 @@ impl<'a> ExpansionTester<'a>
 	/// ```
 	/// First version (`test.expanded.rs`):
 	/// ```
-	/// #[duplicate::duplicate(
+	/// #[duplicate::duplicate_item(
 	///   name;
 	///   [SomeName];
 	/// )]
@@ -192,7 +192,7 @@ impl<'a> ExpansionTester<'a>
 	/// ```
 	/// Second version (`inline_test.expanded.rs`):
 	/// ```
-	/// duplicate::duplicate_inline{
+	/// duplicate::duplicate{
 	///   [
 	///     name;
 	///     [SomeName];
@@ -222,13 +222,13 @@ impl<'a> ExpansionTester<'a>
 
 				match line
 				{
-					"#[duplicate::duplicate(" =>
+					"#[duplicate::duplicate_item(" =>
 					{
 						dest_file
-							.write_all("#[duplicate::duplicate(".as_bytes())
+							.write_all("#[duplicate::duplicate_item(".as_bytes())
 							.unwrap();
 						dest_inline_file
-							.write_all("duplicate::duplicate_inline!{\n[".as_bytes())
+							.write_all("duplicate::duplicate!{\n[".as_bytes())
 							.unwrap();
 					},
 					")]//duplicate_end" =>

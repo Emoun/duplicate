@@ -1,5 +1,5 @@
 // Tests module names are postfixed from substitution identifier
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	[
 		name [SomeName11]
 	]
@@ -17,7 +17,7 @@ mod module {
 
 // Tests if multiple identifiers are given, the first identifier who's substitutions
 // all are simple identifiers (and nothing else) is chosen
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	[
 		member_type	[Vec<()>]
 		name 		[SomeName21]
@@ -38,7 +38,7 @@ mod module {
 
 // Tests if multiple identifiers are given, the first identifier who's substitutions
 // all are simple identifiers is chosen
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	[
 		member_type		[u8]
 		filler_ident	[SomeIdent]
@@ -61,7 +61,7 @@ mod module {
 //item_end
 
 // Tests only the module name is disambiguated and not any identifiers used inside it.
-#[duplicate::duplicate(
+#[duplicate::duplicate_item(
 	[
 		name [SomeName41]
 	]
