@@ -7,6 +7,9 @@ on:
       - '[0-9]+.[0-9]+.[0-9]+'
       - '[0-9]+.[0-9]+.[0-9]+-**'
   pull_request:
+  schedule:
+    # Run every monday at 5:45 AM
+    - cron: '45 5 * * MON'
 
 env:
   CARGO_TERM_COLOR: always
