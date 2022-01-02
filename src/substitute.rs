@@ -260,14 +260,15 @@ fn substitute_next_token(
 				{
 					let stream = if subst.arg_count > 0
 					{
-						let group = parse_group(tree, Delimiter::Parenthesis, ident.span(), "")?;
+						let group =
+							parse_group(tree, Some(Delimiter::Parenthesis), ident.span(), "")?;
 						let mut group_stream_iter = group.stream().into_iter().peekable();
 						let mut args = Vec::new();
 						loop
 						{
 							match parse_group(
 								&mut group_stream_iter,
-								Delimiter::Bracket,
+								Some(Delimiter::Bracket),
 								ident.span(),
 								"",
 							)

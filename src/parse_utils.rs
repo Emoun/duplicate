@@ -6,19 +6,21 @@ use std::iter::Peekable;
 ///
 /// Always returns Err(..) with an error message composed of the prefix,
 /// expected delimiter span, and given hints.
-pub fn group_err<T>(span: Span, prefix: &str, expected: Delimiter, hints: &str) -> Result<T>
+pub fn group_err<T>(span: Span, prefix: &str, expected: Option<Delimiter>, hints: &str)
+	-> Result<T>
 {
 	Err((
 		span,
 		format!(
-			"{}\nExpected '{}'.\n{}",
+			"{}\nExpected {}.\n{}",
 			prefix,
 			match expected
 			{
-				Delimiter::Brace => '{',
-				Delimiter::Bracket => '[',
-				Delimiter::Parenthesis => '(',
-				_ => unreachable!("Shouldn't expect None delimiters"),
+				Some(Delimiter::Brace) => "'{'",
+				Some(Delimiter::Bracket) => "'['",
+				Some(Delimiter::Parenthesis) => "'('",
+				Some(_) => unreachable!("Shouldn't expect None delimiters"),
+				_ => "'{', '[', or '('",
 			},
 			hints
 		),
@@ -34,7 +36,7 @@ pub fn group_err<T>(span: Span, prefix: &str, expected: Delimiter, hints: &str) 
 /// Always consumes a token from the iterator
 pub fn parse_group(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
-	del: Delimiter,
+	del: Option<Delimiter>,
 	parent_span: Span,
 	hints: &str,
 ) -> Result<Group>
@@ -48,9 +50,15 @@ pub fn parse_group(
 	result
 }
 
+/// Peeks at the next token tree, checking that its a group and returning
+/// a copy of the body.
+/// If a delimiter (`del`) is given, also checks that the group uses the
+/// given delimiter specifically, returning an error otherwise.
+///
+/// Does not consume any tokens
 pub fn peek_parse_group(
 	iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
-	del: Delimiter,
+	del: Option<Delimiter>,
 	parent_span: Span,
 	hints: &str,
 ) -> Result<Group>
@@ -59,7 +67,10 @@ pub fn peek_parse_group(
 	{
 		if let TokenTree::Group(group) = tree
 		{
-			check_delimiter(&group, del)?;
+			if let Some(d) = del
+			{
+				check_delimiter(&group, d)?;
+			}
 			Ok(group.clone())
 		}
 		else
@@ -91,7 +102,7 @@ pub fn check_group(tree: TokenTree, del: Delimiter, hints: &str) -> Result<Group
 	}
 	else
 	{
-		group_err(tree.span(), "Not a group.", del, hints)
+		group_err(tree.span(), "Not a group.", Some(del), hints)
 	}
 }
 
@@ -102,7 +113,12 @@ pub fn check_delimiter(group: &Group, del: Delimiter) -> Result<()>
 {
 	if group.delimiter() != del
 	{
-		group_err(group.span(), "Unexpected delimiter for group.", del, "")
+		group_err(
+			group.span(),
+			"Unexpected delimiter for group.",
+			Some(del),
+			"",
+		)
 	}
 	else
 	{
@@ -121,12 +137,6 @@ pub fn punct_is_char(p: &Punct, c: char) -> bool
 pub fn is_semicolon(p: &Punct) -> bool
 {
 	punct_is_char(p, ';')
-}
-
-/// Checks whether the given punctuation is '#'.
-pub fn is_nested_invocation(p: &Punct) -> bool
-{
-	punct_is_char(p, '#')
 }
 
 /// Gets the next token tree from the iterator.
@@ -236,4 +246,28 @@ pub fn extract_argument_list(group: &Group) -> Result<Vec<String>>
 		}
 	}
 	Ok(result)
+}
+
+/// Checks if the given 2 tokens constitute the beginning of a nested
+/// invocation. If so, consume the next token (the '!')
+pub fn is_nested_invocation(
+	first: &TokenTree,
+	next_iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+) -> bool
+{
+	let result = next_iter.peek().map_or(false, |t| {
+		if let (TokenTree::Ident(id), TokenTree::Punct(p)) = (first, t)
+		{
+			id.to_string() == "duplicate" && punct_is_char(&p, '!')
+		}
+		else
+		{
+			false
+		}
+	});
+	if result
+	{
+		next_iter.next(); // Consume the '!'
+	}
+	result
 }

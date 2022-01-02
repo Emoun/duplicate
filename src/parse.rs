@@ -4,7 +4,10 @@ use crate::{
 	DuplicationDefinition, Result, SubstitutionGroup,
 };
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
-use std::{collections::HashSet, iter::Peekable};
+use std::{
+	collections::HashSet,
+	iter::{FromIterator, Peekable},
+};
 
 /// Parses the invocation of duplicate, returning all the substitutions that
 /// should be made to the item.
@@ -30,6 +33,12 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 					}
 				},
 			)
+		},
+		Some((ident, _)) if is_nested_invocation(&TokenTree::Ident(ident.clone()), &mut iter) =>
+		{
+			let mut expanded = invoke_nested(&mut iter, ident.span())?;
+			expanded.extend(iter);
+			parse_invocation(expanded)
 		},
 		Some((ident, group)) =>
 		{
@@ -123,41 +132,32 @@ fn validate_verbose_invocation(
 	let mut sub_groups = Vec::new();
 
 	let mut substitution_ids = None;
-	let mut err_span = Span::call_site();
 	loop
 	{
-		if let Ok(tree) = next_token(&mut iter, err_span, "Substitution group")
+		match iter.next()
 		{
-			err_span = tree.span();
-			match &tree
+			Some(t1) if is_nested_invocation(&t1, &mut iter) =>
 			{
-				TokenTree::Punct(p) if is_nested_invocation(p) =>
+				let nested_duplicated = invoke_nested(&mut iter, t1.span())?;
+				let subs = validate_verbose_invocation(nested_duplicated.into_iter(), true)?;
+				sub_groups.extend(subs.into_iter());
+			},
+			Some(tree) =>
+			{
+				sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
+				if None == substitution_ids
 				{
-					let nested_duplicated = invoke_nested(&mut iter, p.span())?;
-					let subs = validate_verbose_invocation(nested_duplicated.into_iter(), true)?;
-					sub_groups.extend(subs.into_iter());
-				},
-				_ =>
-				{
-					sub_groups.push(extract_verbose_substitutions(tree, &substitution_ids)?);
-					if None == substitution_ids
-					{
-						substitution_ids = Some(
-							sub_groups[0]
-								.identifiers_with_args()
-								.map(|(ident, count)| (ident.clone(), count))
-								.collect(),
-						)
-					}
-				},
-			}
-		}
-		else
-		{
-			break;
+					substitution_ids = Some(
+						sub_groups[0]
+							.identifiers_with_args()
+							.map(|(ident, count)| (ident.clone(), count))
+							.collect(),
+					)
+				}
+			},
+			None => break,
 		}
 	}
-
 	Ok(sub_groups)
 }
 
@@ -175,14 +175,14 @@ fn extract_inline_substitution(
 	if let TokenTree::Ident(ident) = token
 	{
 		let _ = stream.next();
-		let group_1 = peek_parse_group(stream, Delimiter::Parenthesis, ident.span(), "");
+		let group_1 = peek_parse_group(stream, Some(Delimiter::Parenthesis), ident.span(), "");
 
 		if let Ok(params) = group_1
 		{
 			let _ = stream.next();
 			parse_group(
 				stream,
-				Delimiter::Bracket,
+				Some(Delimiter::Bracket),
 				ident.span(),
 				"Hint: A substitution identifier should be followed by a group containing the \
 				 code to be inserted instead of any occurrence of the identifier.",
@@ -198,7 +198,7 @@ fn extract_inline_substitution(
 		{
 			parse_group(
 				stream,
-				Delimiter::Bracket,
+				Some(Delimiter::Bracket),
 				ident.span(),
 				"Hint: A substitution identifier should be followed by a group containing the \
 				 code to be inserted instead of any occurrence of the identifier.",
@@ -277,7 +277,6 @@ fn extract_verbose_substitutions(
 						}
 						msg.push_str(")");
 					}
-
 					return Err((tree_span, msg));
 				}
 			}
@@ -366,49 +365,46 @@ fn validate_short_get_all_substitution_goups<'a>(
 	let mut iter = iter.peekable();
 	loop
 	{
-		if let Some(TokenTree::Punct(p)) = iter.peek()
+		match iter.next()
 		{
-			if is_nested_invocation(&p)
+			Some(t1) if is_nested_invocation(&t1, &mut iter) =>
 			{
-				let p_span = p.span();
-				// consume '#'
-				iter.next();
-
-				let nested_duplicated = invoke_nested(&mut iter, p_span)?;
+				let nested_duplicated = invoke_nested(&mut iter, t1.span())?;
 				validate_short_get_all_substitution_goups(
 					&mut nested_duplicated.into_iter(),
 					span.clone(),
 					result,
 				)?;
-			}
-		}
-		else
-		{
-			validate_short_get_substitutions(
-				&mut iter,
-				span,
-				result.iter_mut().map(|(_, _, vec)| {
-					vec.push(TokenStream::new());
-					vec.last_mut().unwrap()
-				}),
-			)?;
+			},
+			next =>
+			{
+				let mut iter = next.into_iter().chain(&mut iter).peekable();
+				validate_short_get_substitutions(
+					&mut iter,
+					span,
+					result.iter_mut().map(|(_, _, vec)| {
+						vec.push(TokenStream::new());
+						vec.last_mut().unwrap()
+					}),
+				)?;
 
-			if let Some(token) = iter.next()
-			{
-				span = token.span();
-				if let TokenTree::Punct(p) = token
+				if let Some(token) = iter.next()
 				{
-					if is_semicolon(&p)
+					span = token.span();
+					if let TokenTree::Punct(p) = token
 					{
-						continue;
+						if is_semicolon(&p)
+						{
+							continue;
+						}
 					}
+					return Err((span, "Expected ';'.".into()));
 				}
-				return Err((span, "Expected ';'.".into()));
-			}
-			else
-			{
-				break;
-			}
+				else
+				{
+					break;
+				}
+			},
 		}
 	}
 	Ok(())
@@ -430,7 +426,7 @@ fn validate_short_get_substitutions<'a>(
 
 		for stream in groups
 		{
-			let group = parse_group(iter, Delimiter::Bracket, span, "")?;
+			let group = parse_group(iter, Some(Delimiter::Bracket), span, "")?;
 			span = group.span();
 			*stream = group.stream();
 		}
@@ -446,15 +442,16 @@ fn invoke_nested(
 	span: Span,
 ) -> Result<TokenStream>
 {
-	let hints = "Hint: '#' is a nested invocation of the macro and must therefore be followed by \
-	             a group containing the invocation.\nExample:\n#[\n\tidentifier [ substitute1 ] [ \
-	             substitute2 ]\n][\n\tCode to be substituted whenever 'identifier' occurs \n]";
-	let nested_attr = parse_group(iter, Delimiter::Bracket, span, hints)?;
-	let nested_dup_def = parse_invocation(nested_attr.stream())?;
+	let mut nested_body_iter = parse_group(iter, None, span, "")?
+		.stream()
+		.into_iter()
+		.peekable();
 
-	let nested_item = parse_group(iter, Delimiter::Bracket, nested_attr.span(), hints)?;
+	let nested_invocation = parse_group(&mut nested_body_iter, Some(Delimiter::Bracket), span, "")?;
+	let nested_dup_def = parse_invocation(nested_invocation.stream())?;
+
 	duplicate_and_substitute(
-		nested_item.stream(),
+		TokenStream::from_iter(nested_body_iter),
 		&nested_dup_def.global_substitutions,
 		nested_dup_def.duplications.iter(),
 	)

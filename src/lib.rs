@@ -288,16 +288,18 @@
 //! # use duplicate::duplicate_item;
 //! #[duplicate_item(
 //!   int_type implementation;
-//!   #[
-//!     int_type_nested; [u8]; [u16]; [u32]
-//!   ][
+//!   duplicate!{
+//!     [
+//!       int_type_nested; [u8]; [u16]; [u32]
+//!     ]
 //!     [ int_type_nested ] [ false ];
-//!   ]
-//!   #[
-//!     int_type_nested; [i8]; [i16]; [i32]
-//!   ][
+//!   }
+//!   duplicate!{
+//!     [
+//!       int_type_nested; [i8]; [i16]; [i32]
+//!     ]
 //!     [ int_type_nested ] [ *self < 0 ];
-//!   ]
+//!   }
 //! )]
 //! impl IsNegative for int_type {
 //!   fn is_negative(&self) -> bool {
@@ -313,8 +315,7 @@
 //! assert!(!42i32.is_negative());
 //! ```
 //!
-//! We use `#` to invoke the macro inside itself, producing duplicates
-//! of the code inside the following `[]`.
+//! We use `duplicate!{..}` to invoke the macro inside itself.
 //! In our example, we have 2 invocations that each produce 3 substitution
 //! groups, inserting the correct `implementation` for their signed or unsigned
 //! types. The above nested invocation is equivalent to the previous, non-nested
@@ -326,21 +327,22 @@
 //! our example, it can get complicated to read.
 //!
 //! Lastly, we should note that we can have nested invocations interleaved with
-//! normal substution groups. For example, say we want to implement `IsNegative`
-//! for `i8`, but don't want the same for `i16` and `i32`. We could do the
-//! following:
+//! normal substitution groups. For example, say we want to implement
+//! `IsNegative` for `i8`, but don't want the same for `i16` and `i32`. We could
+//! do the following:
 //!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
 //! # use duplicate::duplicate_item;
 //! #[duplicate_item(
 //!   int_type implementation;
-//!   #[                                     // -+
-//!     int_type_nested; [u8]; [u16]; [u32]  //  | Nested invocation producing 3
-//!   ][                                     //  | substitution groups
-//!     [int_type_nested ] [ false ];        //  |
-//!   ]                                      // -+
-//!   [ i8 ] [ *self < 0 ]                   // -- Substitution group 4
+//!   duplicate!{
+//!     [                                     // -+
+//!       int_type_nested; [u8]; [u16]; [u32] //  | Nested invocation producing 3
+//!     ]                                     //  | substitution groups
+//!     [int_type_nested ] [ false ];         //  |
+//!   }                                       // -+
+//!   [ i8 ] [ *self < 0 ]                    // -- Substitution group 4
 //! )]
 //! impl IsNegative for int_type {
 //!   fn is_negative(&self) -> bool {
@@ -452,22 +454,20 @@
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
 //! # use duplicate::duplicate_item;
 //! #[duplicate_item(
-//!   #[
-//!     int_type_nested; [u8]; [u16]; [u32]
-//!   ][
+//!   duplicate!{
+//!     [ int_type_nested; [u8]; [u16]; [u32] ]
 //!     [
 //!       int_type [ int_type_nested ]
 //!       implementation [ false ]
 //!     ]
-//!   ]
-//!   #[
-//!     int_type_nested; [i8]; [i16]; [i32]
-//!   ][
+//!   }
+//!   duplicate!{
+//!     [ int_type_nested; [i8]; [i16]; [i32] ]
 //!     [
 //!       int_type [ int_type_nested ]
 //!       implementation [ *self < 0 ]
 //!     ]
-//!   ]
+//!   }
 //! )]
 //! impl IsNegative for int_type {
 //!   fn is_negative(&self) -> bool {
@@ -868,12 +868,13 @@ use substitute::*;
 ///
 /// #[duplicate_item(
 ///   int_type implementation;
-///   #[                                  // -+
-///     int_type_nested;[u8];[u16];[u32]  //  | Nested invocation producing 3
-///   ][                                  //  | substitution groups
-///     [ int_type_nested ] [ false ];    //  |
-///   ]                                   // -+
-///   [ i8 ] [ *self < 0 ]                // -- Substitution group 4
+///   duplicate!{
+///     [                                  // -+
+///       int_type_nested;[u8];[u16];[u32] //  | Nested invocation producing 3
+///     ]                                  //  | substitution groups
+///     [ int_type_nested ] [ false ];     //  |
+///   }                                    // -+
+///   [ i8 ] [ *self < 0 ]                 // -- Substitution group 4
 /// )]
 /// impl IsNegative for int_type {
 ///   fn is_negative(&self) -> bool {
@@ -937,18 +938,17 @@ use substitute::*;
 /// }
 ///
 /// #[duplicate_item(
-///   #[                                  // -+
-///     int_type_nested;[u8];[u16];[u32]  //  |
-///   ][                                  //  |
-///     [                                 //  | Nested invocation producing 3
-///       int_type [ int_type_nested ]    //  | substitution groups
-///       implementation [ false ]        //  |
-///     ]                                 //  |
-///   ]                                   // -+
-///   [                                   // -+
-///     int_type [ i8 ]                   //  | Substitution group 4
-///     implementation [ *self < 0 ]      //  |
-///   ]                                   // -+
+///   duplicate!{                            // -+
+///     [ int_type_nested;[u8];[u16];[u32] ] //  |
+///     [                                    //  | Nested invocation producing 3
+///       int_type [ int_type_nested ]       //  | substitution groups
+///       implementation [ false ]           //  |
+///     ]                                    //  |
+///   }                                      // -+
+///   [                                      // -+
+///     int_type [ i8 ]                      //  | Substitution group 4
+///     implementation [ *self < 0 ]         //  |
+///   ]                                      // -+
 /// )]
 /// impl IsNegative for int_type {
 ///   fn is_negative(&self) -> bool {
@@ -1092,7 +1092,7 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 
 	let result = match parse_group(
 		&mut iter,
-		Delimiter::Bracket,
+		Some(Delimiter::Bracket),
 		Span::call_site(),
 		"Missing invocation.",
 	)
@@ -1274,7 +1274,7 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 		{
 			if let TokenTree::Ident(module) = next_token(&mut iter, Span::call_site(), "").ok()?
 			{
-				if parse_group(&mut iter, Delimiter::Brace, Span::call_site(), "").is_ok()
+				if parse_group(&mut iter, Some(Delimiter::Brace), Span::call_site(), "").is_ok()
 				{
 					return Some(module);
 				}
