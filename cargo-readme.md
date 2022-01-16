@@ -75,10 +75,10 @@ assert!(!42u32.is_max());
 
 This crate's _Minimum Supported Rust Version_ (MSRV) depends on which features are enabled.
 
-The _Base MSRV_ is 1.34. It applies when no features are enabled and is the lowest possible MSRV.
+The _Base MSRV_ is 1.42. It applies when no features are enabled and is the lowest possible MSRV.
 Enabling the following features increases the MSRV to the stated version:
 
-* `module_disambiguation`: 1.42
+_No features currently increase the MSRV beyong the base._
 
 Enabling features not on the above list doesn't increase the MSRV.
 

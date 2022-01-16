@@ -4,9 +4,6 @@ inputs:
   rust-version:  
     description: 'Which Rust version to use for test'
     required: true
-  features-non-34:
-    description: "Which features to build/test when version isn't 1.34"
-    required: true
   additional-arguments:
     description: "Additional arguments to pass to cargo test"
     required: false
@@ -24,8 +21,7 @@ runs:
       run: |
         # Install dependencies of 'macrotest'
         rustup toolchain install nightly
-        # Can only use stable rust to build cargo-expand because it doesn't build on 1.34
-        cargo +stable install --locked cargo-expand
+        cargo install --locked cargo-expand
         # Set the rust version to use for this build
         rustup default ${{ inputs.rust-version }}
     - run: echo "::group::Test no_features"
@@ -34,8 +30,7 @@ runs:
       shell: bash
     - run: echo "::group::Test module_disambiguation"
       shell: bash
-      # Only test module_disambiguation for non 1.34 rust.
-    - run: "${{(inputs.rust-version == '1.34.2')}} || cargo test --no-default-features --features module_disambiguation ${{ inputs.additional-arguments }}"
+    - run: "cargo test --no-default-features --features module_disambiguation ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test pretty_errors"
       shell: bash
@@ -43,19 +38,15 @@ runs:
       shell: bash
     - run: echo "::group::Test Default Features"
       shell: bash
-      # Since default features include module_disambiguation don't test on 1.34 rust.
-    - run: "${{(inputs.rust-version == '1.34.2')}} || cargo test default_features:: ${{ inputs.additional-arguments }}"
+    - run: "cargo test default_features:: ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test All Features"
       shell: bash
-    - run: "cargo test --no-default-features --features pretty_errors,${{ inputs.feature-non-34 }} ${{ inputs.additional-arguments }}"
+    - run: "cargo test --no-default-features --features pretty_errors,module_disambiguation ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Test Documentation Code"
       shell: bash
-      # We only use >1.34 because there is a bug in 'cargo test'
-      # that means doctests always use all default features.
-      # This will cause 'module_disambiguation' doctests to fail on 1.34
-    - run: "${{(inputs.rust-version == '1.34.2')}} || cargo test --doc --features pretty_errors,${{ inputs.feature-non-34 }} ${{ inputs.additional-arguments }}"
+    - run: "cargo test --doc --all-features ${{ inputs.additional-arguments }}"
       shell: bash
     - run: echo "::group::Build Documentation"
       shell: bash

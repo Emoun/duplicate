@@ -22,10 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         rust-version: ['1.42.0', stable, beta, nightly]
-        features-non-34: [module_disambiguation]
-        include:
-          - rust-version: '1.34.2'
-            features-non-34: ""
 
     steps:
       - uses: actions/checkout@v2
@@ -33,7 +29,6 @@ jobs:
         uses: ./.github/actions/run-test-groups
         with:
           rust-version: ${{ matrix.rust-version }}
-          features-non-34: ${{ matrix.features-non-34 }}
   
   deny-warnings:
     name: Deny Warnings
@@ -44,7 +39,6 @@ jobs:
         uses: ./.github/actions/run-test-groups
         with:
           rust-version: stable
-          features-non-34: module_disambiguation
           additional-arguments: --features=fail-on-warnings
           
   rustfmt:
