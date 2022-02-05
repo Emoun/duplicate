@@ -1,21 +1,21 @@
 #[duplicate::duplicate_item(
 	name;
-	[SomeName];
+	[SomeName1];
 )]//duplicate_end
 pub struct name();
 //item_end
 
 #[duplicate::duplicate_item(
 	name		member;
-	[SomeName]	[SomeMember]
+	[SomeName2]	[SomeMember2]
 )]//duplicate_end
 pub struct name(member);
 //item_end
 
 #[duplicate::duplicate_item(
 	name		member;
-	[SomeName]	[SomeMember];
-	[SomeName2]	[SomeMember2];
+	[SomeName3]	[SomeMember3];
+	[SomeName4]	[SomeMember4];
 )]//duplicate_end
 pub struct name(member);
 //item_end
@@ -28,13 +28,23 @@ pub struct name(member);
 mod module {
 	use super::*;
 	
-	#[duplicate::duplicate_item(
+	// We add a space so that the test setup doesn't
+	// recognize it and try to change it to a `duplicate` call
+	#[duplicate:: duplicate_item(
 		name		member;
-		[SomeName]	[SomeMember];
-		[SomeName2]	[SomeMember2];
-	)]//duplicate_end
+		[SomeName5]	[SomeMember5];
+		[SomeName6]	[SomeMember6];
+	)]
 	pub struct name(member);
-	//item_end
+	
+	duplicate!{
+		[
+			name		member;
+			[SomeName7]	[SomeMember7];
+			[SomeName8]	[SomeMember8];
+		]
+		pub struct name(member);
+	}
 }
 //item_end
 

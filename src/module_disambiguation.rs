@@ -1,7 +1,6 @@
-use crate::{Result, SubstitutionGroup};
+use crate::{Result, SubstitutionGroup, Token, TokenIter};
 use heck::SnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
-use std::iter::Peekable;
 
 /// Finds a substitution identifier whose substitutions only contain one
 /// identifier and nothing else for all duplicates.
@@ -51,19 +50,20 @@ pub(crate) fn try_substitute_mod(
 	mod_and_postfix_sub: &Option<(Ident, String)>,
 	substitutions: &SubstitutionGroup,
 	// The item being substituted. Will consume 'mod' and the following name if successful
-	item_iter: &mut Peekable<impl Iterator<Item = TokenTree>>,
+	item_iter: &mut TokenIter,
 ) -> TokenStream
 {
 	let mut result = TokenStream::new();
 	if let Some((mod_name, mod_sub_ident)) = mod_and_postfix_sub
 	{
-		match item_iter.peek()
-		{
-			Some(TokenTree::Ident(mod_keyword)) if mod_keyword.to_string() == "mod" =>
-			{
-				result.extend(Some(item_iter.next().unwrap()).into_iter()); // Consumed mod keyword
+		item_iter
+			.extract_simple(|t| Token::is_ident(t, Some("mod")), |t| t, None)
+			.map_or((), |mod_keyword| {
+				result.extend(Some(mod_keyword).into_iter());
 
-				let mod_name_t = item_iter.next().unwrap(); // Consume mod name (since we will replace it)
+				// Consume mod name (since we will replace it)
+				let mod_name_t = item_iter.next_fallible().unwrap().unwrap();
+
 				let postfix = substitutions
 					.substitution_of(&mod_sub_ident)
 					.unwrap()
@@ -72,11 +72,9 @@ pub(crate) fn try_substitute_mod(
 					.to_string()
 					.to_snake_case();
 				let replacement_name = mod_name.to_string() + "_" + &postfix;
-				let replacement = Ident::new(&replacement_name, mod_name_t.span());
+				let replacement = Ident::new(&replacement_name, TokenTree::from(mod_name_t).span());
 				result.extend(Some(TokenTree::Ident(replacement)).into_iter());
-			},
-			_ => (),
-		}
+			});
 	}
 	result
 }

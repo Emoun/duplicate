@@ -248,11 +248,13 @@
 //! # assert!(!42i16.is_negative());
 //! # assert!(!42i32.is_negative());
 //! ```
+//!
 //! Notice how the code repetition is split over 2 axes: 1) They all implement
 //! the same trait 2) the method implementations of the first 3 are identical to
 //! each other but different to the next 3, which are also mutually identical.
 //! To implement this using only the syntax we have already seen, we could do
 //! something like this:
+//!
 //! ```
 //! # trait IsNegative { fn is_negative(&self) -> bool;}
 //! # use duplicate::duplicate_item;
@@ -278,6 +280,7 @@
 //! assert!(!42i16.is_negative());
 //! assert!(!42i32.is_negative());
 //! ```
+//!
 //! However, ironically, we here had to repeat ourselves in the macro invocation
 //! instead of the code: we needed to repeat the implementations `[ false ]` and
 //! `[ *self < 0 ]` three times each. We can utilize _nested invocation_ to
@@ -356,12 +359,12 @@
 //! # assert!(!42i8.is_negative());
 //! ```
 //!
-//! Note that nested invocation is only allowed after the initial list of
-//! substitution identifiers. You also cannot use it between individual
-//! subtitutions in a group, only between whole substitution groups.
-//! Lastly, remember that substitution groups must be seperated by `;`, which
-//! means the nested invocation must produce these semi-colons explicitly and
-//! correctly.
+//! In general, nested invocations can be used anywhere. However, note that
+//! nested invocations are only recognized by the identifier `duplicate`,
+//! followed by `!`, followed by a delimiter within which the nested invocation
+//! is. Therefore, care must be taken to ensure the surrounding code is correct
+//! after the expansion. E.g. maybe `;` is needed after the invocation, or
+//! commas must be produced by the nested invocation itself as part of a list.
 //!
 //! ## Verbose Syntax
 //!
@@ -692,7 +695,7 @@
 //!
 //! This crate does not try to justify or condone the usage of code duplication
 //! instead of proper abstractions.
-//! This macro should only be used where it is not possible to reduce code
+//! This crate should only be used where it is not possible to reduce code
 //! duplication through other means, or where it simply is not worth it.
 //!
 //! As an example, libraries that have two or more structs/traits with similar
@@ -707,15 +710,15 @@ mod crate_readme_test;
 #[cfg(feature = "module_disambiguation")]
 mod module_disambiguation;
 mod parse;
-mod parse_utils;
 mod substitute;
+mod token_iter;
 
-use crate::parse_utils::{next_token, parse_group};
+use crate::token_iter::{Token, TokenIter};
 use parse::*;
-use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Ident, Span, TokenStream};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
-use std::{collections::HashMap, iter::FromIterator};
+use std::collections::HashMap;
 use substitute::*;
 
 /// Duplicates the item and substitutes specific identifiers for different code
@@ -1088,21 +1091,18 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(stream: TokenStream) -> TokenStream
 {
-	let mut iter = stream.into_iter().peekable();
+	let mut iter: TokenIter = stream.into();
 
-	let result = match parse_group(
-		&mut iter,
+	let result = match iter.next_group(
 		Some(Delimiter::Bracket),
-		Span::call_site(),
-		"Missing invocation.",
+		"Expected invocation within brackets: [...]",
 	)
 	{
-		Ok(invocation) =>
+		Ok((invocation, _)) =>
 		{
-			let invocation_body = invocation.stream();
-			let rest = TokenStream::from_iter(iter);
+			let invocation_body = invocation.to_token_stream();
 
-			duplicate_impl(invocation_body, rest)
+			duplicate_impl(invocation_body, iter.to_token_stream())
 		},
 		Err(err) => Err(err),
 	};
@@ -1260,26 +1260,19 @@ pub(crate) fn disambiguate_module<'a>(
 		_ => Ok(None),
 	}
 }
+
 /// Extract the name of the module assuming the given item is a module
 /// declaration.
 ///
 /// If not, returns None.
 fn get_module_name(item: &TokenStream) -> Option<Ident>
 {
-	let mut iter = item.clone().into_iter().peekable();
+	let mut iter: TokenIter = item.clone().into();
 
-	if let TokenTree::Ident(mod_keyword) = next_token(&mut iter, Span::call_site(), "").ok()?
-	{
-		if mod_keyword.to_string() == "mod"
-		{
-			if let TokenTree::Ident(module) = next_token(&mut iter, Span::call_site(), "").ok()?
-			{
-				if parse_group(&mut iter, Some(Delimiter::Brace), Span::call_site(), "").is_ok()
-				{
-					return Some(module);
-				}
-			}
-		}
-	}
-	None
+	iter.expect_simple(|t| Token::is_ident(t, Some("mod")), None)
+		.ok()?;
+
+	let module = iter.extract_identifier(None).ok()?;
+	iter.next_group(Some(Delimiter::Brace), "").ok()?;
+	Some(module)
 }

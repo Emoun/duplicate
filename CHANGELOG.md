@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Nested invocations can now be used everywhere.
+
 ### Changed
 
 - [BREAKING] Renamed `duplicate::duplicate` to `duplicate::duplicate_item`. See [#40](https://github.com/Emoun/duplicate/issues/40).
