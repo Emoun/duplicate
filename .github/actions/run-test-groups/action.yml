@@ -7,6 +7,9 @@ inputs:
   additional-arguments:
     description: "Additional arguments to pass to cargo test"
     required: false
+  minimal-versions:
+    description: "Whether cargo.lock should be set to minimal versions before running the tests"
+    required: true
         
 runs:
   using: "composite"
@@ -24,6 +27,11 @@ runs:
         cargo install --locked cargo-expand
         # Set the rust version to use for this build
         rustup default ${{ inputs.rust-version }}
+    - if: inputs.minimal-versions == 'true'
+      # We use cargo check only to set the cargo.lock file
+      # since we have to use nightly for -Z
+      run: cargo +nightly -Z minimal-versions check
+      shell: bash
     - run: echo "::group::Test no_features"
       shell: bash
     - run: "cargo test ${{ inputs.additional-arguments }} --no-default-features"

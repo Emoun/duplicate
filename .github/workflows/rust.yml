@@ -29,6 +29,7 @@ jobs:
         uses: ./.github/actions/run-test-groups
         with:
           rust-version: ${{ matrix.rust-version }}
+          minimal-versions: ${{ matrix.rust-version == '1.42.0' }}
   
   deny-warnings:
     name: Deny Warnings

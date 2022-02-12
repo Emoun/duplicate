@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [BREAKING] Renamed `duplicate::duplicate_inline` to `duplicate::duplicate`. See [#40](https://github.com/Emoun/duplicate/issues/40).
 - [BREAKING] Nested invocation now uses `duplicate!{[<invocation>] <body>}` syntax instead of `#[<invocation>][<body>]`. See [#28](https://github.com/Emoun/duplicate/issues/28).
 - [BREAKING] Increased base MSRV to 1.42. See [#45](https://github.com/Emoun/duplicate/issues/45)
+- [BREAKING] Relaxed MSRV policy. Only the minimal versions of direct and transitive dependencies are guaranteed to work for the MSRV. See [#44](https://github.com/Emoun/duplicate/issues/44)
+- Relaxed pinned dependencies according to new MSRV policy.
 
 ## [0.3.0] - 2021-06-08
 
