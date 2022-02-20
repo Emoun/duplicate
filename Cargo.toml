@@ -4,7 +4,7 @@ version = "0.0.0"
 authors = ["Emad Jacob Maroun <emoun.open@gmail.com>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
-description = "The attribute macro `duplicate` can duplicate an item with variable substitution."
+description = "Provides macros for duplication of code with variable substitution."
 repository = "https://github.com/Emoun/duplicate"
 documentation = "https://docs.rs/duplicate"
 readme = "cargo-readme.md"
@@ -18,7 +18,7 @@ proc-macro = true
 
 [dependencies]
 proc-macro-error = { version = "1.0.4", optional = true }
-heck = { version = "0.3.2", optional = true }
+heck = { version = "0.4.0", optional = true }
 
 [dev-dependencies]
 macrotest = "1.0.8"
@@ -33,6 +33,3 @@ fail-on-warnings = [] # Forces compilation to fail if any warnings are given. Us
 
 [package.metadata.docs.rs]
 all-features = true
-
-[badges]
-maintenance = { status = "experimental" }

@@ -1,5 +1,5 @@
 use crate::{Result, SubstitutionGroup, Token, TokenIter};
-use heck::SnakeCase;
+use heck::ToSnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 
 /// Finds a substitution identifier whose substitutions only contain one

@@ -5,7 +5,7 @@ duplicate
 [![Latest Version](https://img.shields.io/crates/v/duplicate.svg)](https://crates.io/crates/duplicate)
 [![Rust Documentation](https://img.shields.io/badge/api-rustdoc-blue.svg)](https://docs.rs/duplicate)
 
-attribute macro for code duplication with substitution.
+macros for code duplication with substitution.
 
 This document is meant for contributors to the crate. The documentation is hosted at [docs.rs](https://docs.rs/duplicate).
 
@@ -17,7 +17,7 @@ This crate uses [macrotest](https://crates.io/crates/macrotest) for testing expa
 Therefore, before running these tests the nightly compiler must be installed together with `rustfmt` and `cargo-expand`:
 
 ```
-cargo install cargo-expand
+cargo install --locked cargo-expand
 rustup toolchain install nightly
 rustup component add rustfmt
 ```
