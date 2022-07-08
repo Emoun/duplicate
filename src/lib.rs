@@ -701,7 +701,6 @@
 //! As an example, libraries that have two or more structs/traits with similar
 //! APIs might use this macro to test them without having to copy-paste test
 //! cases and manually make the needed edits.
-
 #![cfg_attr(feature = "fail-on-warnings", deny(warnings))]
 
 extern crate proc_macro;
@@ -715,7 +714,7 @@ mod token_iter;
 
 use crate::token_iter::{Token, TokenIter};
 use parse::*;
-use proc_macro::{Delimiter, Ident, Span, TokenStream};
+use proc_macro::{Delimiter, Group, Ident, Span, TokenStream};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
 use std::collections::HashMap;
@@ -1119,8 +1118,6 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 type Result<T> = std::result::Result<T, (Span, String)>;
 
 /// Implements the macro.
-///
-/// `allow_short`: If true, accepts short syntax
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 {
 	let dup_def = parse_invocation(attr)?;
@@ -1275,4 +1272,19 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 	let module = iter.extract_identifier(None).ok()?;
 	iter.next_group(Some(Delimiter::Brace), "").ok()?;
 	Some(module)
+}
+
+/// Creates a new group with the given span correctly set as the group's span.
+///
+/// Use this function instead of creating the group manually, as forgetting
+/// to set the span after creating the group could cause problems like leaking
+/// this crate's edition into user code or simply result in cryptic error
+/// messages.
+pub(crate) fn new_group(del: Delimiter, stream: TokenStream, span: Span) -> Group
+{
+	// We rename 'Group' to not get caught by the 'ensure_no_group_new' test
+	use Group as Gr;
+	let mut g = Gr::new(del, stream);
+	g.set_span(span);
+	g
 }

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed an issue where `duplicate`'s edition would leak into the user's code. See [#47](https://github.com/Emoun/duplicate/issues/47).
+
 ## [0.4.0] - 2022-02-20
 
 ### Added

@@ -1,7 +1,5 @@
-use crate::{invoke_nested, Result};
-use proc_macro::{
-	token_stream::IntoIter, Delimiter, Group, Ident, Spacing, Span, TokenStream, TokenTree,
-};
+use crate::{invoke_nested, new_group, Result};
+use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use std::{
 	collections::VecDeque,
 	fmt::{Debug, Formatter},
@@ -71,7 +69,10 @@ impl From<Token> for TokenTree
 		match t
 		{
 			Token::Simple(t) => t,
-			Token::Group(d, iter, _) => TokenTree::Group(Group::new(d, iter.to_token_stream())),
+			Token::Group(d, iter, span) =>
+			{
+				TokenTree::Group(new_group(d, iter.to_token_stream(), span))
+			},
 		}
 	}
 }
@@ -166,7 +167,7 @@ impl TokenIter
 
 	/// Attempts to get the next unconsumed token.
 	///
-	/// If the next token is a None-delimited group, attempts to get it's next
+	/// If the next token is a None-delimited group, attempts to get its next
 	/// token instead. If such a group is empty, removed it and tries again.
 	fn next_unconsumed(&mut self) -> Result<Option<Token>>
 	{

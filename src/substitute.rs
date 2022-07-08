@@ -1,7 +1,7 @@
 #[cfg(feature = "module_disambiguation")]
 use crate::module_disambiguation::try_substitute_mod;
-use crate::{disambiguate_module, Result, SubstitutionGroup, Token, TokenIter};
-use proc_macro::{Delimiter, Group, Ident, Span, TokenStream, TokenTree};
+use crate::{disambiguate_module, new_group, Result, SubstitutionGroup, Token, TokenIter};
+use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 
 /// The types of sub-substitutions composing a single substitution.
 #[derive(Debug)]
@@ -24,8 +24,8 @@ pub enum SubType
 /// To create a substitution for an identifier, `new` is given the list of
 /// arguments and the tokens to be used as a substitution. The `apply` method
 /// can then be given a set of substitution arguments as TokenStreams (the
-/// number of arguments must match the number given to `new`,) wich will yield
-/// the final TokenStream that should be substituted for the identifer ( +
+/// number of arguments must match the number given to `new`,) which will yield
+/// the final TokenStream that should be substituted for the identifier ( +
 /// arguments).
 #[derive(Debug)]
 pub struct Substitution
@@ -127,9 +127,10 @@ impl Substitution
 						SubType::Argument(idx) => arguments[*idx].clone(),
 						SubType::Group(delimiter, subst) =>
 						{
-							TokenStream::from(TokenTree::Group(Group::new(
+							TokenStream::from(TokenTree::Group(new_group(
 								delimiter.clone(),
 								subst.apply(arguments, err_span)?,
+								Span::call_site(),
 							)))
 						},
 					}
@@ -307,7 +308,7 @@ fn substitute_next_token(
 				_ => return Err((ident.span(), "Multiple substitutions for identifier".into())),
 			}
 		},
-		Some(Token::Group(del, mut group_iter, _)) =>
+		Some(Token::Group(del, mut group_iter, span)) =>
 		{
 			let mut substituted = TokenStream::new();
 			while let Some(stream) =
@@ -316,7 +317,7 @@ fn substitute_next_token(
 				substituted.extend(stream)
 			}
 			result.get_or_insert_with(|| TokenStream::new()).extend(
-				TokenStream::from(TokenTree::Group(Group::new(del, substituted))).into_iter(),
+				TokenStream::from(TokenTree::Group(new_group(del, substituted, span))).into_iter(),
 			);
 		},
 		Some(token) =>
