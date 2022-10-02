@@ -1,18 +1,19 @@
-#[duplicate::duplicate_item(
+use duplicate::*;
+#[duplicate_item(
 	name;
 	[SomeName1];
 )]//duplicate_end
 pub struct name();
 //item_end
 
-#[duplicate::duplicate_item(
+#[duplicate_item(
 	name		member;
 	[SomeName2]	[SomeMember2]
 )]//duplicate_end
 pub struct name(member);
 //item_end
 
-#[duplicate::duplicate_item(
+#[duplicate_item(
 	name		member;
 	[SomeName3]	[SomeMember3];
 	[SomeName4]	[SomeMember4];
@@ -20,7 +21,7 @@ pub struct name(member);
 pub struct name(member);
 //item_end
 
-#[duplicate::duplicate_item(
+#[duplicate_item(
 	module ;
 	[ mod1 ];
 	[ mod2 ]
@@ -30,7 +31,7 @@ mod module {
 	
 	// We add a space so that the test setup doesn't
 	// recognize it and try to change it to a `duplicate` call
-	#[duplicate:: duplicate_item(
+	#[ duplicate_item(
 		name		member;
 		[SomeName5]	[SomeMember5];
 		[SomeName6]	[SomeMember6];
@@ -49,7 +50,7 @@ mod module {
 //item_end
 
 // Test substitution that includes braces
-#[duplicate::duplicate_item(
+#[duplicate_item(
 	fn_name 		var;
 	[ fn_name_1 ]	[ Struct() ];
 	[ fn_name_2 ]	[ array[4] ];

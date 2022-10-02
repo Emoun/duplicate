@@ -1,4 +1,7 @@
-use crate::{Result, SubstitutionGroup, Token, TokenIter};
+use crate::{
+	token_iter::{is_ident, SubGroupIter},
+	Result, SubstitutionGroup, TokenIter,
+};
 use heck::ToSnakeCase;
 use proc_macro::{Ident, Span, TokenStream, TokenTree};
 
@@ -42,7 +45,7 @@ pub(crate) fn find_simple<'a>(
 
 /// If the next token is the 'mod' keyword, substitutes the following module
 /// name with its disambiguation, returning 'mod' plus the disambiguation.
-pub(crate) fn try_substitute_mod(
+pub(crate) fn try_substitute_mod<'a, T: SubGroupIter<'a>>(
 	// If Some(), then tries to disambiguate, otherwise doesn't.
 	//
 	// First is the module name to disambiguate, then the substitution identifier to use
@@ -50,14 +53,14 @@ pub(crate) fn try_substitute_mod(
 	mod_and_postfix_sub: &Option<(Ident, String)>,
 	substitutions: &SubstitutionGroup,
 	// The item being substituted. Will consume 'mod' and the following name if successful
-	item_iter: &mut TokenIter,
+	item_iter: &mut TokenIter<'a, T>,
 ) -> TokenStream
 {
 	let mut result = TokenStream::new();
 	if let Some((mod_name, mod_sub_ident)) = mod_and_postfix_sub
 	{
 		item_iter
-			.extract_simple(|t| Token::is_ident(t, Some("mod")), |t| t, None)
+			.extract_simple(|t| is_ident(t, Some("mod")), |t| t, None)
 			.map_or((), |mod_keyword| {
 				result.extend(Some(mod_keyword).into_iter());
 

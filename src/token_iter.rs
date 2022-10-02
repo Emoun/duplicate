@@ -1,70 +1,28 @@
-use crate::{invoke_nested, new_group, Result};
+use crate::{duplicate_and_substitute, invoke_nested, new_group, Result, SubstitutionGroup};
 use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use std::{
 	collections::VecDeque,
 	fmt::{Debug, Formatter},
-	iter::FromIterator,
+	iter::{once, FromIterator},
 };
+
+/// Trait alias
+pub(crate) trait SubGroupIter<'a>: Iterator<Item = &'a SubstitutionGroup> + Clone {}
+impl<'a, T: Iterator<Item = &'a SubstitutionGroup> + Clone> SubGroupIter<'a> for T {}
 
 /// Designates the type of a token
 #[derive(Debug, Clone)]
-pub enum Token
+pub(crate) enum Token<'a, T: SubGroupIter<'a>>
 {
 	/// A simple token (i.e. not a group)
 	Simple(TokenTree),
 
 	/// A group with the given delimiter, body, and original span
-	Group(Delimiter, TokenIter, Span),
+	Group(Delimiter, TokenIter<'a, T>, Span),
 }
-impl Token
+impl<'a, T: SubGroupIter<'a>> From<Token<'a, T>> for TokenTree
 {
-	fn is_punct(t: &TokenTree, c: char) -> bool
-	{
-		if let TokenTree::Punct(p) = t
-		{
-			p.as_char() == c && p.spacing() == Spacing::Alone
-		}
-		else
-		{
-			false
-		}
-	}
-
-	/// Whether the token is a semicolon punctuation
-	pub fn is_semicolon(t: &TokenTree) -> bool
-	{
-		Self::is_punct(t, ';')
-	}
-
-	/// Whether the token is an identifier
-	pub fn is_ident(t: &TokenTree, comp: Option<&str>) -> bool
-	{
-		if let TokenTree::Ident(id) = t
-		{
-			comp.map_or(true, |comp| comp == id.to_string())
-		}
-		else
-		{
-			false
-		}
-	}
-
-	/// If the given token is an identifiers, gets it.
-	pub fn get_ident(t: TokenTree) -> Option<Ident>
-	{
-		if let TokenTree::Ident(id) = t
-		{
-			Some(id)
-		}
-		else
-		{
-			None
-		}
-	}
-}
-impl From<Token> for TokenTree
-{
-	fn from(t: Token) -> Self
+	fn from(t: Token<'a, T>) -> Self
 	{
 		match t
 		{
@@ -77,18 +35,69 @@ impl From<Token> for TokenTree
 	}
 }
 
+/// Whether the token tree is a punctuation
+fn is_punct(t: &TokenTree, c: char) -> bool
+{
+	if let TokenTree::Punct(p) = t
+	{
+		p.as_char() == c && p.spacing() == Spacing::Alone
+	}
+	else
+	{
+		false
+	}
+}
+
+/// Whether the token tree is a semicolon punctuation
+pub fn is_semicolon(t: &TokenTree) -> bool
+{
+	is_punct(t, ';')
+}
+
+/// Whether the token tree is an identifier, and if so, whether it is equal to
+/// the given string (if given)
+pub fn is_ident(t: &TokenTree, comp: Option<&str>) -> bool
+{
+	if let TokenTree::Ident(id) = t
+	{
+		comp.map_or(true, |comp| comp == id.to_string())
+	}
+	else
+	{
+		false
+	}
+}
+
+/// If the given token tree is an identifier, gets it.
+pub fn get_ident(t: TokenTree) -> Option<Ident>
+{
+	if let TokenTree::Ident(id) = t
+	{
+		Some(id)
+	}
+	else
+	{
+		None
+	}
+}
+
 /// Used to iterate through tokens from a TokenStream.
 ///
 /// Will automatically expand any nested `duplicate` calls, ensuring only final
-/// tokens are produced. Will also automatically extract tokens from any group
-/// without delimiters instead of producing the group itself. Therefore, any
-/// group produced is guaranteed to no use the None delimiter.
+/// tokens are produced. Before doing the expansion, will duplicate/substitute
+/// the nested invocation according to the given rules. This is needed e.g. when
+/// the outer invocation affects the inner invocation's invocation and not
+/// only the body.
+///
+/// Will also automatically extract tokens from any group without delimiters
+/// instead of producing the group itself. Therefore, any group produced is
+/// guaranteed to no use the None delimiter.
 ///
 /// Most methods return a Result because the processing happens lazily, meaning
 /// a processing error (e.g. if nested invocations fail) can happen at any time.
 /// If a method returns an error, no tokens are consumed.
 #[derive(Clone)]
-pub struct TokenIter
+pub(crate) struct TokenIter<'a, T: SubGroupIter<'a>>
 {
 	/// Tokens that have yet to be processed
 	raw_tokens: IntoIter,
@@ -97,12 +106,20 @@ pub struct TokenIter
 	///
 	/// If a token is a None-delimited group, its tokens are in the process of
 	/// being produced.
-	unconsumed: VecDeque<Token>,
+	unconsumed: VecDeque<Token<'a, T>>,
+
+	/// While processing, nested invocations are first substituted with these
+	/// global substitutions
+	global_subs: &'a SubstitutionGroup,
+
+	/// While processing, nested invocations are first duplicated with these
+	/// substitution groups.
+	sub_groups: T,
 
 	/// The span of the last token to be produced.
 	last_span: Span,
 }
-impl TokenIter
+impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 {
 	/// Gets at least 1 token from the raw stream and puts it in the unconsumed,
 	/// expanding any nested invocation if encountered
@@ -118,7 +135,7 @@ impl TokenIter
 				{
 					self.unconsumed.push_back(Token::Group(
 						g.delimiter(),
-						TokenIter::from(g.stream()),
+						TokenIter::new_like(g.stream(), self),
 						g.span(),
 					))
 				},
@@ -126,16 +143,28 @@ impl TokenIter
 				{
 					if let Some(TokenTree::Punct(p)) = self.raw_tokens.next()
 					{
-						if Token::is_punct(&TokenTree::Punct(p.clone()), '!')
+						if is_punct(&TokenTree::Punct(p.clone()), '!')
 						{
-							// Nested Invocation
-							let stream = invoke_nested(
-								&mut TokenStream::from_iter(self.raw_tokens.next().into_iter())
-									.into(),
-							)?;
+							// Nested Invocation. First perform any needed duplication/substitutions
+							// from outer invocation, then invoke it.
+							let nested_body = if !self.global_subs.substitutions.is_empty()
+								|| self.sub_groups.clone().count() > 1
+							{
+								duplicate_and_substitute(
+									TokenStream::from_iter(self.raw_tokens.next().into_iter()),
+									self.global_subs,
+									self.sub_groups.clone(),
+								)?
+							}
+							else
+							{
+								TokenStream::from_iter(self.raw_tokens.next().into_iter())
+							};
+							let stream =
+								invoke_nested(&mut TokenIter::new_like(nested_body, self))?;
 							self.unconsumed.push_back(Token::Group(
 								Delimiter::None,
-								TokenIter::from(stream),
+								TokenIter::new_like(stream, self),
 								p.span(),
 							));
 						}
@@ -169,7 +198,7 @@ impl TokenIter
 	///
 	/// If the next token is a None-delimited group, attempts to get its next
 	/// token instead. If such a group is empty, removed it and tries again.
-	fn next_unconsumed(&mut self) -> Result<Option<Token>>
+	fn next_unconsumed(&mut self) -> Result<Option<Token<'a, T>>>
 	{
 		self.unconsumed.pop_front().map_or(Ok(None), |t| {
 			match t
@@ -193,7 +222,7 @@ impl TokenIter
 	}
 
 	/// Gets the next fully processed token
-	pub fn next_fallible(&mut self) -> Result<Option<Token>>
+	pub fn next_fallible(&mut self) -> Result<Option<Token<'a, T>>>
 	{
 		self.fetch()?;
 		self.next_unconsumed()
@@ -251,11 +280,7 @@ impl TokenIter
 	/// Returns an error if the next token is not an identifier.
 	pub fn extract_identifier(&mut self, expected: Option<&str>) -> Result<Ident>
 	{
-		self.extract_simple(
-			|t| Token::is_ident(t, None),
-			|t| Token::get_ident(t).unwrap(),
-			expected,
-		)
+		self.extract_simple(|t| is_ident(t, None), |t| get_ident(t).unwrap(), expected)
 	}
 
 	/// Ensures the next token is a simple token.
@@ -281,7 +306,7 @@ impl TokenIter
 	/// Otherwise returns an error.
 	pub fn expect_comma(&mut self) -> Result<()>
 	{
-		self.expect_simple(|t| Token::is_punct(t, ','), Some(","))
+		self.expect_simple(|t| is_punct(t, ','), Some(","))
 	}
 
 	/// Ensures the next token is a semicolon.
@@ -289,7 +314,7 @@ impl TokenIter
 	/// Otherwise returns an error.
 	pub fn expect_semicolon(&mut self) -> Result<()>
 	{
-		self.expect_simple(Token::is_semicolon, Some(";"))
+		self.expect_simple(is_semicolon, Some(";"))
 	}
 
 	/// Gets the body and span of the next group.
@@ -298,11 +323,7 @@ impl TokenIter
 	/// * the group is non-delimited
 	/// * no more tokens are available
 	/// * the next group doesn't use the expected delimiter
-	pub fn next_group(
-		&mut self,
-		expected: Option<Delimiter>,
-		hint: &str,
-	) -> Result<(TokenIter, Span)>
+	pub fn next_group(&mut self, expected: Option<Delimiter>, hint: &str) -> Result<(Self, Span)>
 	{
 		assert_ne!(
 			Some(Delimiter::None),
@@ -347,21 +368,27 @@ impl TokenIter
 		}
 	}
 
-	/// Converts to an Iterator if TokenTrees
-	///
-	/// The resulting iterator will panic if processing encounters an error.
-	pub fn to_token_tree_iter(self) -> impl Iterator<Item = TokenTree>
+	/// Converts to a TokenStream immediately processing the whole iterator,
+	/// panicking if an error is encountered.
+	pub fn process_all(mut self) -> TokenStream
 	{
-		self.map(|t| t.into())
+		let mut result = TokenStream::new();
+		while let Some(t) = self.next_fallible().unwrap()
+		{
+			result.extend(once(TokenTree::from(t)));
+		}
+		result
 	}
 
-	/// Converts to a TokenStream
-	///
-	/// Immediately processes the whole iterator, panicking if an error is
-	/// encountered.
+	/// Convert to TokenStream __without any processing__.
 	pub fn to_token_stream(self) -> TokenStream
 	{
-		TokenStream::from_iter(self.to_token_tree_iter())
+		TokenStream::from_iter(
+			self.unconsumed
+				.into_iter()
+				.map(|tok| TokenTree::from(tok))
+				.chain(self.raw_tokens),
+		)
 	}
 
 	/// Whether there are more tokens to produced
@@ -371,7 +398,7 @@ impl TokenIter
 	}
 
 	/// Peek at the next token to be produced without consuming it
-	pub fn peek(&mut self) -> Result<Option<&Token>>
+	pub fn peek(&mut self) -> Result<Option<&Token<'a, T>>>
 	{
 		let (pop_front, should_fetch, new_front) = match self.unconsumed.front_mut()
 		{
@@ -406,12 +433,39 @@ impl TokenIter
 
 	/// Returns the given token to the front, such that it is the next to be
 	/// produced
-	pub fn push_front(&mut self, token: Token)
+	pub fn push_front(&mut self, token: Token<'a, T>)
 	{
 		self.unconsumed.push_front(token)
 	}
+
+	/// Construct new token iterator from the given stream.
+	///
+	/// The given global substitutions and substitution groups will be used
+	/// to substitute/duplicate nested invocations before they are expanded.
+	pub(crate) fn new(
+		stream: TokenStream,
+		global_subs: &'a SubstitutionGroup,
+		sub_groups: T,
+	) -> Self
+	{
+		Self {
+			raw_tokens: stream.into_iter(),
+			unconsumed: VecDeque::new(),
+			last_span: Span::call_site(),
+			global_subs,
+			sub_groups,
+		}
+	}
+
+	/// Construct new token iterator from the given stream.
+	///
+	/// Substitution/duplication of nested invocations is taken from 'like'
+	pub fn new_like(stream: TokenStream, like: &Self) -> Self
+	{
+		Self::new(stream, like.global_subs, like.sub_groups.clone())
+	}
 }
-impl Debug for TokenIter
+impl<'a, T: SubGroupIter<'a> + Debug> Debug for TokenIter<'a, T>
 {
 	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result
 	{
@@ -419,26 +473,10 @@ impl Debug for TokenIter
 		self.raw_tokens.clone().collect::<Vec<_>>().fmt(f)?;
 		f.write_str(", ")?;
 		self.unconsumed.fmt(f)?;
+		f.write_str(", ")?;
+		self.global_subs.fmt(f)?;
+		f.write_str(", ")?;
+		self.sub_groups.fmt(f)?;
 		f.write_str(",...}")
-	}
-}
-impl From<TokenStream> for TokenIter
-{
-	fn from(stream: TokenStream) -> Self
-	{
-		Self {
-			raw_tokens: stream.into_iter(),
-			unconsumed: VecDeque::new(),
-			last_span: Span::call_site(),
-		}
-	}
-}
-impl Iterator for TokenIter
-{
-	type Item = Token;
-
-	fn next(&mut self) -> Option<Self::Item>
-	{
-		self.next_fallible().unwrap()
 	}
 }

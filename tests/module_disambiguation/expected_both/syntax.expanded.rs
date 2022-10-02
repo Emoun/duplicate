@@ -1,3 +1,4 @@
+use duplicate::*;
 mod module_some_name11 {
     pub struct SomeName11();
 }

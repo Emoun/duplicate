@@ -1,3 +1,4 @@
+use duplicate::*;
 fn fn_const_1(arg: &i32) {}
 fn fn_mut_1(arg: &mut i32) {}
 fn fn_const_2<'a>(arg: &Vec<i32>) {}

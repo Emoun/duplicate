@@ -580,7 +580,7 @@
 //!   [get]      [& type];
 //!   [get_mut]  [&mut type];
 //! )]
-//! pub fn method(
+//! fn method(
 //!   arg0: reference([Type<()>]),
 //!   arg1: typ1,
 //!   arg2: typ2)
@@ -712,7 +712,7 @@ mod parse;
 mod substitute;
 mod token_iter;
 
-use crate::token_iter::{Token, TokenIter};
+use crate::token_iter::{is_ident, Token, TokenIter};
 use parse::*;
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream};
 #[cfg(feature = "pretty_errors")]
@@ -983,7 +983,7 @@ use substitute::*;
 ///   [get]      [& type];
 ///   [get_mut]  [&mut type];
 /// )]
-/// pub fn method(
+/// fn method(
 ///   arg0: reference([Type<()>]),
 ///   arg1: typ1,
 ///   arg2: typ2)
@@ -999,7 +999,7 @@ use substitute::*;
 /// The global substitutions (`typ1` and `typ2`) are substituted in both
 /// duplicates of the function. Global substitutions have the same syntax as
 /// verbose syntax substitutions, are `;` separated (even from following
-/// susbtitutions groups), must all be defined at the beginning, and aren't
+/// substitutions groups), must all be defined at the beginning, and aren't
 /// usable in the invocation itself but only in the code being duplicated.
 #[proc_macro_attribute]
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
@@ -1090,7 +1090,8 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(stream: TokenStream) -> TokenStream
 {
-	let mut iter: TokenIter = stream.into();
+	let empty_globals = SubstitutionGroup::new();
+	let mut iter = TokenIter::new(stream, &empty_globals, std::iter::empty());
 
 	let result = match iter.next_group(
 		Some(Delimiter::Bracket),
@@ -1264,9 +1265,10 @@ pub(crate) fn disambiguate_module<'a>(
 /// If not, returns None.
 fn get_module_name(item: &TokenStream) -> Option<Ident>
 {
-	let mut iter: TokenIter = item.clone().into();
+	let empty_globals = SubstitutionGroup::new();
+	let mut iter = TokenIter::new(item.clone(), &empty_globals, std::iter::empty());
 
-	iter.expect_simple(|t| Token::is_ident(t, Some("mod")), None)
+	iter.expect_simple(|t| is_ident(t, Some("mod")), None)
 		.ok()?;
 
 	let module = iter.extract_identifier(None).ok()?;

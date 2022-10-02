@@ -1,6 +1,9 @@
 #[cfg(feature = "module_disambiguation")]
 use crate::module_disambiguation::try_substitute_mod;
-use crate::{disambiguate_module, new_group, Result, SubstitutionGroup, Token, TokenIter};
+use crate::{
+	disambiguate_module, new_group, token_iter::SubGroupIter, Result, SubstitutionGroup, Token,
+	TokenIter,
+};
 use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 
 /// The types of sub-substitutions composing a single substitution.
@@ -55,7 +58,10 @@ impl Substitution
 	/// The tokens produced by the iterator will be the basis for applying a
 	/// substitution, where each instance of an argument identifier being
 	/// replaced by the arguments passed to the a substitution identifier.
-	pub fn new(arguments: &Vec<String>, mut stream: TokenIter) -> Result<Self>
+	pub(crate) fn new<'a, T: SubGroupIter<'a>>(
+		arguments: &Vec<String>,
+		mut stream: TokenIter<'a, T>,
+	) -> Result<Self>
 	{
 		let mut substitutions = Vec::new();
 		// Group tokens that aren't substitution identifiers or groups
@@ -184,7 +190,7 @@ impl Substitution
 /// Duplicates the given token stream, substituting any identifiers found.
 pub(crate) fn duplicate_and_substitute<'a>(
 	item: TokenStream,
-	global_subs: &SubstitutionGroup,
+	global_subs: &'a SubstitutionGroup,
 	mut sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
 ) -> Result<TokenStream>
 {
@@ -192,8 +198,9 @@ pub(crate) fn duplicate_and_substitute<'a>(
 	#[allow(unused_variables)]
 	let mod_and_postfix_sub = disambiguate_module(&item, sub_groups.clone())?;
 
+	let sub_groups_clone = sub_groups.clone();
 	let mut duplicate_and_substitute_one = |substitutions: &SubstitutionGroup| -> Result<()> {
-		let mut item_iter: TokenIter = item.clone().into();
+		let mut item_iter = TokenIter::new(item.clone(), global_subs, sub_groups_clone.clone());
 
 		#[cfg(feature = "module_disambiguation")]
 		let mut substituted_mod = false;
@@ -237,8 +244,8 @@ pub(crate) fn duplicate_and_substitute<'a>(
 
 /// Recursively checks the given token for any use of the given substitution
 /// identifiers and substitutes them, returning the resulting token stream.
-fn substitute_next_token(
-	tree: &mut TokenIter,
+fn substitute_next_token<'a, T: SubGroupIter<'a>>(
+	tree: &mut TokenIter<'a, T>,
 	global_subs: &SubstitutionGroup,
 	substitutions: &SubstitutionGroup,
 ) -> Result<Option<TokenStream>>
