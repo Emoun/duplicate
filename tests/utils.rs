@@ -126,7 +126,7 @@ impl<'a> ExpansionTester<'a>
 			args.push(features.as_str());
 		}
 
-		macrotest::expand_without_refresh_args(testing_dir + "/*.rs", args.as_slice());
+		duplicate_macrotest::expand_without_refresh_args(testing_dir + "/*.rs", args.as_slice());
 	}
 
 	/// Generates an action that copies the file given to the testing
