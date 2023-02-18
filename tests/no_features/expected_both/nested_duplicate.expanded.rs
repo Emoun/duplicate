@@ -6,11 +6,12 @@ pub struct SomeName4();
 pub struct SomeName5();
 pub struct SomeName6();
 pub struct SomeName7();
-pub struct SomeName8(SomeMember10);
-pub struct SomeName8(SomeMember11);
-pub struct SomeName9(SomeMember10);
-pub struct SomeName9(SomeMember11);
-pub struct SomeName12(SomeMember14);
-pub struct SomeName12(SomeMember15);
-pub struct SomeName13(SomeMember14);
-pub struct SomeName13(SomeMember15);
+trait SomeTrait<T1, T2> {}
+impl SomeTrait<u8, u32> for () {}
+impl SomeTrait<u8, u64> for () {}
+impl SomeTrait<u16, u32> for () {}
+impl SomeTrait<u16, u64> for () {}
+impl SomeTrait<i8, i32> for () {}
+impl SomeTrait<i8, i64> for () {}
+impl SomeTrait<i16, i32> for () {}
+impl SomeTrait<i16, i64> for () {}

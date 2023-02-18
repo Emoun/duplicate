@@ -42,9 +42,9 @@ mod module {
 // Test 2, reversed
 #[duplicate_item(
 	b_member_type	a_name;
-	[u8]			[SomeName41];
-	[u32]			[SomeName42];
-	[u64]			[SomeName43]
+	[i8]			[SomeName41];
+	[i32]			[SomeName42];
+	[i64]			[SomeName43]
 )]//duplicate_end
 mod module {
 	pub struct a_name(b_member_type);
@@ -66,9 +66,9 @@ mod module {
 // Test 3, permutation 2
 #[duplicate_item(
 	member_type	last_identifier 							name;
-	[u8]		[OtherIdent]								[SomeName61];
-	[u32]		[AnotherIdent]								[SomeName62];
-	[u64]		[ZeroIsDefinatelyNotTheLengthOfThisIdent]	[SomeName63]
+	[u16]		[OtherIdent]								[SomeName61];
+	[i16]		[AnotherIdent]								[SomeName62];
+	[bool]		[ZeroIsDefinatelyNotTheLengthOfThisIdent]	[SomeName63]
 )]//duplicate_end
 mod module {
 	pub struct name(member_type);

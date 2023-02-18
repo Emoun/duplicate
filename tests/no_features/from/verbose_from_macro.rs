@@ -30,13 +30,13 @@ macro_rules! test_2_idents_from_macro_variable{
 		//item_end
 	}
 }
-test_2_idents_from_macro_variable!(name member, SomeName2 SomeMember2);
+test_2_idents_from_macro_variable!(name member, SomeName2 u8);
 
 macro_rules! test_ident_from_macro_path_variable{
 	{ $name:path } => {
 		#[duplicate_item(
 			[
-				$name	[SomeMember3]
+				$name	[u8]
 			]
 		)]//duplicate_end
 		pub struct SomeName3($name);
@@ -49,10 +49,10 @@ macro_rules! test_ident_from_macro_expr_variable{
 	{ $name:expr } => {
 		#[duplicate_item(
 			[
-				$name	[SomeValue4]
+				$name	[4]
 			]
 		)]//duplicate_end
-		const SomeName4: () = $name;
+		const SomeName4: u8 = $name;
 		//item_end
 	}
 }
@@ -62,7 +62,7 @@ macro_rules! test_ident_from_macro_type_variable{
 	{ $name:ty } => {
 		#[duplicate_item(
 			[
-				$name	[SomeMember5]
+				$name	[u8]
 			]
 		)]//duplicate_end
 		pub struct SomeName5($name);
@@ -90,7 +90,7 @@ macro_rules! test_ident_from_macro_statement_variable{
 	{ $name:stmt } => {
 		#[duplicate_item(
 			[
-				$name	[SomeName7]
+				$name	[7]
 			]
 		)]//duplicate_end
 		fn some_fn7(){

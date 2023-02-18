@@ -26,14 +26,14 @@ mod module_some_name32 {
 mod module_some_name33 {
     pub struct SomeName33(u64);
 }
-mod module_u8 {
-    pub struct SomeName41(u8);
+mod module_i8 {
+    pub struct SomeName41(i8);
 }
-mod module_u32 {
-    pub struct SomeName42(u32);
+mod module_i32 {
+    pub struct SomeName42(i32);
 }
-mod module_u64 {
-    pub struct SomeName43(u64);
+mod module_i64 {
+    pub struct SomeName43(i64);
 }
 mod module_some_name51 {
     pub struct SomeName51(u8);
@@ -44,14 +44,14 @@ mod module_some_name52 {
 mod module_some_name53 {
     pub struct SomeName53(u64);
 }
-mod module_u8 {
-    pub struct SomeName61(u8);
+mod module_u16 {
+    pub struct SomeName61(u16);
 }
-mod module_u32 {
-    pub struct SomeName62(u32);
+mod module_i16 {
+    pub struct SomeName62(i16);
 }
-mod module_u64 {
-    pub struct SomeName63(u64);
+mod module_bool {
+    pub struct SomeName63(bool);
 }
 mod module_other_ident {
     pub struct SomeName71(u8);

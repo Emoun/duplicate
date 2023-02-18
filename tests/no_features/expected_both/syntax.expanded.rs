@@ -1,28 +1,28 @@
 use duplicate::*;
 pub struct SomeName1();
-pub struct SomeName2(SomeMember2);
-pub struct SomeName3(SomeMember3);
-pub struct SomeName4(SomeMember4);
+pub struct SomeName2(u8);
+pub struct SomeName3(u8);
+pub struct SomeName4(u16);
 mod mod1 {
     use super::*;
-    pub struct SomeName5(SomeMember5);
-    pub struct SomeName6(SomeMember6);
-    pub struct SomeName7(SomeMember7);
-    pub struct SomeName8(SomeMember8);
+    pub struct SomeName5(u8);
+    pub struct SomeName6(u16);
+    pub struct SomeName7(u32);
+    pub struct SomeName8(u64);
 }
 mod mod2 {
     use super::*;
-    pub struct SomeName5(SomeMember5);
-    pub struct SomeName6(SomeMember6);
-    pub struct SomeName7(SomeMember7);
-    pub struct SomeName8(SomeMember8);
+    pub struct SomeName5(u8);
+    pub struct SomeName6(u16);
+    pub struct SomeName7(u32);
+    pub struct SomeName8(u64);
 }
 fn fn_name_1() {
-    let _ = Struct();
+    let _ = std::io::empty();
 }
 fn fn_name_2() {
-    let _ = array[4];
+    let _ = [4; 0];
 }
 fn fn_name_3() {
-    let _ = Struct {};
+    let _ = {};
 }

@@ -21,7 +21,7 @@ mod module_some_name31 {
     pub struct SomeName31(u8);
 }
 mod module_some_name32 {
-    pub struct SomeName32(<SomeType as Trait>::SocType);
+    pub struct SomeName32(<u8 as std::ops::Add>::Output);
 }
 mod module_some_name33 {
     pub struct SomeName33(u64);

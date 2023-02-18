@@ -26,35 +26,35 @@ pub struct name();
 pub struct name();
 //item_end
 
+trait SomeTrait<T1, T2> {}
 // Test 2 substitution groups in nested invocation.
 // Output should be the same as the next test.
 #[duplicate_item(
-	duplicate!{[ some_name; [SomeName8]; [SomeName9] ]
+	duplicate!{[ typ; [u8]; [u16] ]
 		[
-			name	[some_name]
-			member	[SomeMember10]
+			member1	[typ]
+			member2	[u32]
 		]
 		[
-			name	[some_name]
-			member	[SomeMember11]
+			member1	[typ]
+			member2	[u64]
 		]
 	}
 )]//duplicate_end
-pub struct name(member);
+impl SomeTrait<member1, member2> for (){}
 //item_end
 
 // Test nesting depth of 2.
 // Output should be the same as the previous test
 #[duplicate_item(
-	duplicate!{[ some_name; [SomeName12]; [SomeName13] ]
-		duplicate!{[ some_member; [SomeMember14]; [SomeMember15] ]
+	duplicate!{[ typ; [i8]; [i16] ]
+		duplicate!{[ typ2; [i32]; [i64] ]
 			[
-				name	[some_name]
-				member	[some_member]
+				member1	[typ]
+				member2	[typ2]
 			]
 		}
 	}
 )]//duplicate_end
-pub struct name(member);
+impl SomeTrait<member1, member2> for (){}
 //item_end
-

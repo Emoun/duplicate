@@ -1,4 +1,8 @@
 use duplicate::*;
+struct Example {
+    one: u8,
+    two: u8,
+}
 impl Example {
     fn inline_new() -> Self {
         Example { one: 0, two: 0 }
@@ -7,17 +11,18 @@ impl Example {
         Example { one: 0, two: 0 }
     }
 }
-struct StructName1(TypeName11, TypeName12);
-struct TypeName21(TypeName22, TypeName23);
-impl SomeType<33, 31> for () {}
-impl SomeType<34, 31> for () {}
-impl SomeType<33, 32> for () {}
-impl SomeType<34, 32> for () {}
-impl SomeType<45, 43, 41> for () {}
-impl SomeType<46, 43, 41> for () {}
-impl SomeType<45, 44, 41> for () {}
-impl SomeType<46, 44, 41> for () {}
-impl SomeType<45, 43, 42> for () {}
-impl SomeType<46, 43, 42> for () {}
-impl SomeType<45, 44, 42> for () {}
-impl SomeType<46, 44, 42> for () {}
+struct StructName1(u8, u16);
+struct TypeName21(u8, u16);
+impl std::error::Error<u32, u8> for () {}
+impl std::error::Error<u64, u8> for () {}
+impl std::error::Error<u32, u16> for () {}
+impl std::error::Error<u64, u16> for () {}
+trait SomeType<T1, T2, T3> {}
+impl SomeType<i8, u32, u8> for () {}
+impl SomeType<i16, u32, u8> for () {}
+impl SomeType<i8, u64, u8> for () {}
+impl SomeType<i16, u64, u8> for () {}
+impl SomeType<i8, u32, u16> for () {}
+impl SomeType<i16, u32, u16> for () {}
+impl SomeType<i8, u64, u16> for () {}
+impl SomeType<i16, u64, u16> for () {}

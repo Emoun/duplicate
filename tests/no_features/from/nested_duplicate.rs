@@ -1,4 +1,5 @@
 use duplicate::*;
+struct Example{one: u8, two: u8}
 // Tests nesting in substitutions
 #[duplicate_item(
 	members [
@@ -25,11 +26,11 @@ impl Example {
 	name [StructName1];
 	duplicate!{
 		[
-			typ [TypeName11]
+			typ [u8]
 		]
 		typ1 [typ];
 	}
-	typ2 [TypeName12];
+	typ2 [u16];
 )]//duplicate_end
 struct name(typ1,typ2);
 //item_end
@@ -40,35 +41,36 @@ struct name(typ1,typ2);
 	[TypeName21]
 	duplicate!{
 		[
-			typ [TypeName22]
+			typ [u8]
 		]
 		[typ]
 	}
-	[TypeName23];
+	[u16];
 )]//duplicate_end
 struct name(typ1, typ2);
 //item_end
 
 // Tests sequential nesting
 #[duplicate_item(
-	v1;	[31]; [32];
+	v1;	[u8]; [u16];
 )]//duplicate_end
 #[duplicate_item(
-	v2;	[33, v1]; [34, v1];
+	v2;	[u32, v1]; [u64, v1];
 )]//duplicate_end
-impl SomeType<v2> for (){}
+impl std::error::Error<v2> for (){}
 //item_end
 //item_end
 
-// Tests sequential nesting (3-deep
+trait SomeType<T1,T2,T3>{}
+// Tests sequential nesting (3-deep)
 #[duplicate_item(
-	v1;	[41]; [42];
+	v1;	[u8]; [u16];
 )]//duplicate_end
 #[duplicate_item(
-	v2;	[43, v1]; [44, v1];
+	v2;	[u32, v1]; [u64, v1];
 )]//duplicate_end
 #[duplicate_item(
-	v3;	[45, v2]; [46, v2];
+	v3;	[i8, v2]; [i16, v2];
 )]//duplicate_end
 impl SomeType<v3> for (){}
 //item_end

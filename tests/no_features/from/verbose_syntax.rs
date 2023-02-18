@@ -10,7 +10,7 @@ pub struct name();
 #[duplicate_item(
 	[
 		name	[SomeName2]
-		member	[SomeMember2]
+		member	[u8]
 	]
 )]//duplicate_end
 pub struct name(member);
@@ -19,11 +19,11 @@ pub struct name(member);
 #[duplicate_item(
 	[
 		name	[SomeName3]
-		member	[SomeMember3]
+		member	[u8]
 	]
 	[
 		name	[SomeName4]
-		member	[SomeMember4]
+		member	[u16]
 	]
 )]//duplicate_end
 pub struct name(member);
@@ -45,11 +45,11 @@ mod module {
 	#[ duplicate_item(
 		[
 			name	[SomeName5]
-			member	[SomeMember5]
+			member	[u8]
 		]
 		[
 			name	[SomeName6]
-			member	[SomeMember6]
+			member	[u16]
 		]
 	)]
 	pub struct name(member);
@@ -58,11 +58,11 @@ mod module {
 		[
 			[
 				name	[SomeName7]
-				member	[SomeMember7]
+				member	[u32]
 			]
 			[
 				name	[SomeName8]
-				member	[SomeMember8]
+				member	[u64]
 			]
 		]
 		pub struct name(member);
@@ -74,15 +74,15 @@ mod module {
 #[duplicate_item(
 	[
 		fn_name [ fn_name_1 ]
-		var		[ Struct() ]
+		var		[ std::io::empty() ]
 	]
 	[
 		fn_name [ fn_name_2 ]
-		var		[ array[4] ]
+		var		[ [4; 0] ]
 	]
 	[
 		fn_name [ fn_name_3 ]
-		var		[ Struct{} ]
+		var		[ {} ]
 	]
 )]//duplicate_end
 fn fn_name() {

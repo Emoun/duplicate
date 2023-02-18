@@ -46,7 +46,7 @@ mod module {
 		name 			[SomeName31]
 	]
 	[
-		member_type		[<SomeType as Trait>::SocType]
+		member_type		[<u8 as std::ops::Add>::Output]
 		filler_ident	[SomeOtherIdent]
 		name 			[SomeName32]
 	]

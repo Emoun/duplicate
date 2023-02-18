@@ -12,7 +12,7 @@ pub struct name(ty);
 //item_end
 #[duplicate_item(
 	name	[SomeName3];
-	rf(ty)	[&ty];
+	rf(ty)	[Vec<ty>];
 )]//duplicate_end
 pub struct name(rf([i32]));
 //item_end

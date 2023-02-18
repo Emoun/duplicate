@@ -29,7 +29,7 @@ mod module {
 #[duplicate_item(
 	member_type						filler_ident			name;
 	[u8]							[SomeIdent]				[SomeName31];
-	[<SomeType as Trait>::SocType]	[SomeOtherIdent]		[SomeName32];
+	[<u8 as std::ops::Add>::Output]	[SomeOtherIdent]		[SomeName32];
 	[u64]							[Not<An::Identifier>]	[SomeName33]
 )]//duplicate_end
 mod module {
