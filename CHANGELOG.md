@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - `duplicate` now also substitutes the invocations of nested `duplicate`'s. See [#48](https://github.com/Emoun/duplicate/issues/48).
+- Forgetting to enclose subtitution parameters in brackets now reports sensible error. See [#30](https://github.com/Emoun/duplicate/issues/30).
 
 ## [0.4.1] - 2022-07-17
 

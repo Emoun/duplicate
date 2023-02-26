@@ -1,4 +1,5 @@
 use crate::{
+	error::Error,
 	substitute::{duplicate_and_substitute, Substitution},
 	token_iter::{get_ident, is_ident, is_semicolon, SubGroupIter, Token, TokenIter},
 	DuplicationDefinition, Result, SubstitutionGroup,
@@ -50,9 +51,8 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 					}
 					else
 					{
-						return Err((
-							Span::call_site(),
-							"Duplicate internal error: Failed at creating substitution".into(),
+						return Err(Error::new(
+							"Duplicate internal error: Failed at creating substitution",
 						));
 					}
 				}
@@ -111,7 +111,7 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 {
 	if err_on_no_subs && !iter.has_next()?
 	{
-		return Err((Span::call_site(), "No substitutions found.".into()));
+		return Err(Error::new("No substitutions found."));
 	}
 
 	let mut sub_groups = Vec::new();
@@ -119,12 +119,13 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 	let mut substitution_ids = None;
 	while iter.has_next()?
 	{
-		let (body, span) = iter.next_group(
-			Some(Delimiter::Bracket),
-			"Hint: When using verbose syntax, a substitutions must be enclosed in a \
-			 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ \
-			 substitution2 ]\n]",
-		)?;
+		let (body, span) = iter.next_group(Some(Delimiter::Bracket)).map_err(|err| {
+			err.hint(
+				"Hint: When using verbose syntax, a substitutions must be enclosed in a \
+				 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ \
+				 substitution2 ]\n]",
+			)
+		})?;
 		sub_groups.push(extract_verbose_substitutions(
 			body,
 			span,
@@ -150,12 +151,13 @@ fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 ) -> Result<(Ident, Substitution)>
 {
 	let ident = stream.extract_identifier(Some("substitution identifier"))?;
-	let param_group = stream.next_group(Some(Delimiter::Parenthesis), "");
-	let substitution = stream.next_group(
-		Some(Delimiter::Bracket),
-		"Hint: A substitution identifier should be followed by a group containing the code to be \
-		 inserted instead of any occurrence of the identifier.",
-	);
+	let param_group = stream.next_group(Some(Delimiter::Parenthesis));
+	let substitution = stream.next_group(Some(Delimiter::Bracket)).map_err(|err| {
+		err.hint(
+			"Hint: A substitution identifier should be followed by a group containing the code to \
+			 be inserted instead of any occurrence of the identifier.",
+		)
+	});
 
 	if let Ok((params, span)) = param_group
 	{
@@ -192,7 +194,7 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 {
 	if !iter.has_next()?
 	{
-		return Err((iter_span, "No substitution groups found.".into()));
+		return Err(Error::new("No substitution groups found.").span(iter_span));
 	}
 
 	let mut substitutions = SubstitutionGroup::new();
@@ -233,7 +235,7 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 				}
 				msg.push_str(")");
 			}
-			return Err((iter_span, msg));
+			return Err(Error::new(msg).span(iter_span));
 		}
 	}
 	Ok(substitutions)
@@ -281,7 +283,7 @@ fn validate_short_get_identifier_arguments<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
 ) -> Result<Vec<String>>
 {
-	if let Ok((group, _)) = iter.next_group(Some(Delimiter::Parenthesis), "")
+	if let Ok((group, _)) = iter.next_group(Some(Delimiter::Parenthesis))
 	{
 		let result = extract_argument_list(group)?;
 		return Ok(result);
@@ -300,7 +302,7 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 	{
 		for (_, _, streams) in result.iter_mut()
 		{
-			let (group, _) = iter.next_group(Some(Delimiter::Bracket), "")?;
+			let (group, _) = iter.next_group(Some(Delimiter::Bracket))?;
 			streams.push(group.to_token_stream());
 		}
 
@@ -318,9 +320,9 @@ pub(crate) fn invoke_nested<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
 ) -> Result<TokenStream>
 {
-	let (mut nested_body_iter, _) = iter.next_group(None, "")?;
+	let (mut nested_body_iter, _) = iter.next_group(None)?;
 
-	let (nested_invocation, _) = nested_body_iter.next_group(Some(Delimiter::Bracket), "")?;
+	let (nested_invocation, _) = nested_body_iter.next_group(Some(Delimiter::Bracket))?;
 	let nested_dup_def = parse_invocation(nested_invocation.to_token_stream())?;
 
 	duplicate_and_substitute(

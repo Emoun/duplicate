@@ -706,13 +706,18 @@
 extern crate proc_macro;
 
 mod crate_readme_test;
+mod error;
 #[cfg(feature = "module_disambiguation")]
 mod module_disambiguation;
 mod parse;
+mod pretty_errors;
 mod substitute;
 mod token_iter;
 
-use crate::token_iter::{is_ident, Token, TokenIter};
+use crate::{
+	error::Error,
+	token_iter::{is_ident, Token, TokenIter},
+};
 use parse::*;
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream};
 #[cfg(feature = "pretty_errors")]
@@ -1008,7 +1013,7 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 	match duplicate_impl(attr, item)
 	{
 		Ok(result) => result,
-		Err(err) => abort(err.0, &err.1),
+		Err(err) => abort(err),
 	}
 }
 
@@ -1093,10 +1098,7 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 	let empty_globals = SubstitutionGroup::new();
 	let mut iter = TokenIter::new(stream, &empty_globals, std::iter::empty());
 
-	let result = match iter.next_group(
-		Some(Delimiter::Bracket),
-		"Expected invocation within brackets: [...]",
-	)
+	let result = match iter.next_group(Some(Delimiter::Bracket))
 	{
 		Ok((invocation, _)) =>
 		{
@@ -1104,19 +1106,19 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 
 			duplicate_impl(invocation_body, iter.to_token_stream())
 		},
-		Err(err) => Err(err),
+		Err(err) => Err(err.hint("Expected invocation within brackets: [...]")),
 	};
 
 	match result
 	{
 		Ok(result) => result,
-		Err(err) => abort(err.0, &err.1),
+		Err(err) => abort(err),
 	}
 }
 
 /// A result that specified where in the token stream the error occured
 /// and is accompanied by a message.
-type Result<T> = std::result::Result<T, (Span, String)>;
+type Result<T> = std::result::Result<T, Error>;
 
 /// Implements the macro.
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
@@ -1135,8 +1137,9 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 /// The `pretty_errors` feature can be enabled, the span is shown
 /// with the error message.
 #[allow(unused_variables)]
-fn abort(span: Span, msg: &str) -> !
+fn abort(err: Error) -> !
 {
+	let (span, msg) = err.extract();
 	#[cfg(feature = "pretty_errors")]
 	{
 		abort!(span, msg);
@@ -1173,10 +1176,10 @@ impl SubstitutionGroup
 			.insert(ident.to_string(), subst)
 			.is_some()
 		{
-			Err((
-				ident.span(),
-				"Substitution identifier assigned mutiple substitutions".into(),
-			))
+			Err(
+				Error::new("Substitution identifier assigned mutiple substitutions")
+					.span(ident.span()),
+			)
 		}
 		else
 		{
@@ -1236,15 +1239,13 @@ pub(crate) fn disambiguate_module<'a>(
 		{
 			#[cfg(not(feature = "module_disambiguation"))]
 			{
-				Err((
-					module.span(),
-					format!(
-						"Duplicating the module '{}' without giving each duplicate a unique \
-						 name.\nHint: Enable the 'duplicate' crate's 'module_disambiguation' \
-						 feature to automatically generate unique module names.",
-						module.to_string()
-					),
+				Err(Error::new(format!(
+					"Duplicating the module '{}' without giving each duplicate a unique \
+					 name.\nHint: Enable the 'duplicate' crate's 'module_disambiguation' feature \
+					 to automatically generate unique module names.",
+					module.to_string()
 				))
+				.span(module.span()))
 			}
 			#[cfg(feature = "module_disambiguation")]
 			{
@@ -1272,7 +1273,7 @@ fn get_module_name(item: &TokenStream) -> Option<Ident>
 		.ok()?;
 
 	let module = iter.extract_identifier(None).ok()?;
-	iter.next_group(Some(Delimiter::Brace), "").ok()?;
+	iter.next_group(Some(Delimiter::Brace)).ok()?;
 	Some(module)
 }
 

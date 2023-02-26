@@ -1,4 +1,5 @@
 use crate::{
+	error::Error,
 	token_iter::{is_ident, SubGroupIter},
 	Result, SubstitutionGroup, TokenIter,
 };
@@ -33,14 +34,13 @@ pub(crate) fn find_simple<'a>(
 		}
 		return Ok(ident.clone());
 	}
-	Err((
-		mod_span,
+	Err(Error::new(
 		"Was unable to find a suitable substitution identifier to postfix on the module's \
 		 name.\nHint: If a substitution identifier's substitutions all consist of a single \
 		 identifier and nothing, they will automatically be postfixed on the module name to make \
-		 them unique."
-			.into(),
-	))
+		 them unique.",
+	)
+	.span(mod_span))
 }
 
 /// If the next token is the 'mod' keyword, substitutes the following module

@@ -1,8 +1,8 @@
 #[cfg(feature = "module_disambiguation")]
 use crate::module_disambiguation::try_substitute_mod;
 use crate::{
-	disambiguate_module, new_group, token_iter::SubGroupIter, Result, SubstitutionGroup, Token,
-	TokenIter,
+	disambiguate_module, error::Error, new_group, token_iter::SubGroupIter, Result,
+	SubstitutionGroup, Token, TokenIter,
 };
 use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 
@@ -147,14 +147,12 @@ impl Substitution
 		}
 		else
 		{
-			Err((
-				err_span,
-				format!(
-					"Expected {} substitution arguments but got {}",
-					self.arg_count,
-					arguments.len()
-				),
+			Err(Error::new(format!(
+				"Expected {} substitution arguments but got {}",
+				self.arg_count,
+				arguments.len()
 			))
+			.span(err_span))
 		}
 	}
 
@@ -265,11 +263,11 @@ fn substitute_next_token<'a, T: SubGroupIter<'a>>(
 					let stream = if subst.arg_count > 0
 					{
 						let (mut group_iter, span) =
-							tree.next_group(Some(Delimiter::Parenthesis), "")?;
+							tree.next_group(Some(Delimiter::Parenthesis))?;
 						let mut args = Vec::new();
 						loop
 						{
-							match group_iter.next_group(Some(Delimiter::Bracket), "")
+							match group_iter.next_group(Some(Delimiter::Bracket))
 							{
 								Ok((group, _)) =>
 								{
@@ -287,7 +285,9 @@ fn substitute_next_token<'a, T: SubGroupIter<'a>>(
 								{
 									if group_iter.has_next()?
 									{
-										return Err(err);
+										return Err(
+											err.hint(crate::pretty_errors::BRACKET_SUB_PARAM)
+										);
 									}
 									else
 									{
@@ -312,7 +312,12 @@ fn substitute_next_token<'a, T: SubGroupIter<'a>>(
 						.get_or_insert_with(|| TokenStream::new())
 						.extend(TokenStream::from(TokenTree::Ident(ident)).into_iter());
 				},
-				_ => return Err((ident.span(), "Multiple substitutions for identifier".into())),
+				_ =>
+				{
+					return Err(
+						Error::new("Multiple substitutions for identifier").span(ident.span())
+					)
+				},
 			}
 		},
 		Some(Token::Group(del, mut group_iter, span)) =>

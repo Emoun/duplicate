@@ -52,6 +52,9 @@ pub struct ExpansionTester<'a>
 	/// Source sub-directory, and how it's files should be treated before
 	/// testing
 	source_dirs: Vec<(&'a str, Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>)>,
+
+	/// Whether this tester is testing errors, i.e. that expansions should fail
+	error_tests: bool,
 }
 
 impl<'a> ExpansionTester<'a>
@@ -63,6 +66,20 @@ impl<'a> ExpansionTester<'a>
 			dir: home_dir,
 			testing_dir,
 			source_dirs: Vec::new(),
+			error_tests: false,
+		}
+	}
+
+	/// Construct a new tester with a home directory and a testing subdirectory.
+	///
+	/// This tester will be testing errors.
+	pub fn new_errors(home_dir: &'a str, testing_dir: &'a str) -> Self
+	{
+		Self {
+			dir: home_dir,
+			testing_dir,
+			source_dirs: Vec::new(),
+			error_tests: true,
 		}
 	}
 
@@ -126,7 +143,20 @@ impl<'a> ExpansionTester<'a>
 			args.push(features.as_str());
 		}
 
-		duplicate_macrotest::expand_without_refresh_args(testing_dir + "/*.rs", args.as_slice());
+		if self.error_tests
+		{
+			duplicate_macrotest::expand_without_refresh_args_fail(
+				testing_dir + "/*.rs",
+				args.as_slice(),
+			);
+		}
+		else
+		{
+			duplicate_macrotest::expand_without_refresh_args(
+				testing_dir + "/*.rs",
+				args.as_slice(),
+			);
+		}
 	}
 
 	/// Generates an action that copies the file given to the testing
@@ -151,7 +181,7 @@ impl<'a> ExpansionTester<'a>
 	}
 
 	/// Generates an action that creates two versions of the given file in the
-	/// testing directory. The source file must use the 'duplicate' attribute
+	/// testing directory. The source file must use the attribute
 	/// macro, where:
 	/// - The invocation must starts with `#[duplicate_item(` on a the first
 	///   line
@@ -255,7 +285,21 @@ impl<'a> ExpansionTester<'a>
 	/// setup.
 	pub fn run_default_test_setup(home_dir: &str, test_subdir: &str)
 	{
-		let mut test = ExpansionTester::new(home_dir, test_subdir);
+		Self::run_default_test_setup_errors(home_dir, test_subdir, false)
+	}
+
+	/// Sets up and runs tests in a specific directory using our standard test
+	/// setup.
+	pub fn run_default_test_setup_errors(home_dir: &str, test_subdir: &str, test_errors: bool)
+	{
+		let mut test = if test_errors
+		{
+			ExpansionTester::new_errors(home_dir, test_subdir)
+		}
+		else
+		{
+			ExpansionTester::new(home_dir, test_subdir)
+		};
 		test.add_source_dir("from", vec![ExpansionTester::duplicate_for_inline()]);
 		test.add_source_dir(
 			"expected",

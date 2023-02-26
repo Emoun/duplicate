@@ -1,4 +1,6 @@
-use crate::{duplicate_and_substitute, invoke_nested, new_group, Result, SubstitutionGroup};
+use crate::{
+	duplicate_and_substitute, error::Error, invoke_nested, new_group, Result, SubstitutionGroup,
+};
 use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use std::{
 	collections::VecDeque,
@@ -20,6 +22,19 @@ pub(crate) enum Token<'a, T: SubGroupIter<'a>>
 	/// A group with the given delimiter, body, and original span
 	Group(Delimiter, TokenIter<'a, T>, Span),
 }
+impl<'a, T: SubGroupIter<'a>> Token<'a, T>
+{
+	/// Returns the span of the enclosed token(s)
+	pub(crate) fn span(&self) -> Span
+	{
+		match self
+		{
+			Token::Simple(t) => t.span(),
+			Token::Group(_, _, span) => span.clone(),
+		}
+	}
+}
+
 impl<'a, T: SubGroupIter<'a>> From<Token<'a, T>> for TokenTree
 {
 	fn from(t: Token<'a, T>) -> Self
@@ -266,12 +281,15 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 				self.last_span = t.span();
 				Ok(f(self.next_fallible().unwrap().unwrap().into()))
 			},
-			Some(Token::Simple(t)) => Err((t.span(), create_error("Unexpected token"))),
+			Some(Token::Simple(t)) =>
+			{
+				Err(Error::new(create_error("Unexpected token")).span(t.span()))
+			},
 			Some(Token::Group(_, _, span)) =>
 			{
-				Err((span.clone(), create_error("Unexpected delimiter")))
+				Err(Error::new(create_error("Unexpected delimiter")).span(span.clone()))
 			},
-			None => Err((Span::call_site(), create_error("Unexpected end of code"))),
+			None => Err(Error::new(create_error("Unexpected end of code"))),
 		}
 	}
 
@@ -323,7 +341,7 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 	/// * the group is non-delimited
 	/// * no more tokens are available
 	/// * the next group doesn't use the expected delimiter
-	pub fn next_group(&mut self, expected: Option<Delimiter>, hint: &str) -> Result<(Self, Span)>
+	pub fn next_group(&mut self, expected: Option<Delimiter>) -> Result<(Self, Span)>
 	{
 		assert_ne!(
 			Some(Delimiter::None),
@@ -341,7 +359,7 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 				_ => unreachable!(),
 			}
 		};
-		let error = || format!("Expected {}.\n{}", left_delimiter(expected), hint);
+		let error = || format!("Expected {}.", left_delimiter(expected));
 
 		match self.peek()?
 		{
@@ -351,7 +369,7 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 				{
 					if exp_del != *del
 					{
-						return Err((span.clone(), error()));
+						return Err(Error::new(error()).span(span.clone()));
 					}
 				}
 				if let Token::Group(_, iter, span) = self.next_fallible()?.unwrap()
@@ -364,7 +382,8 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 					unreachable!()
 				}
 			},
-			_ => Err((self.last_span, error())),
+			Some(token) => Err(Error::new(error()).span(token.span())),
+			_ => Err(Error::new(error()).span(self.last_span)),
 		}
 	}
 
