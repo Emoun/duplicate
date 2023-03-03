@@ -1,0 +1,5 @@
+       Hint: Add a substitution group after the substitution identifiers.
+       Example:
+           name;
+           [SomeSubstitution];
+           ^^^^^^^^^^^^^^^^^^^

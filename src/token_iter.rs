@@ -261,18 +261,12 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 	) -> Result<R>
 	{
 		let create_error = |error: &str| {
-			let mut msg: String = error.into();
+			let mut err = Error::new(error);
 			if let Some(expected_string) = expected
 			{
-				msg.push_str(". Expected ");
-				msg.push_str(expected_string);
-				msg.push_str(" instead.");
+				err = err.hint("Hint: Expected ".to_string() + expected_string + ".");
 			}
-			else
-			{
-				msg.push('.');
-			}
-			msg
+			err
 		};
 		match self.peek()?
 		{
@@ -281,15 +275,12 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 				self.last_span = t.span();
 				Ok(f(self.next_fallible().unwrap().unwrap().into()))
 			},
-			Some(Token::Simple(t)) =>
-			{
-				Err(Error::new(create_error("Unexpected token")).span(t.span()))
-			},
+			Some(Token::Simple(t)) => Err(create_error("Unexpected token.").span(t.span())),
 			Some(Token::Group(_, _, span)) =>
 			{
-				Err(Error::new(create_error("Unexpected delimiter")).span(span.clone()))
+				Err(create_error("Unexpected delimiter.").span(span.clone()))
 			},
-			None => Err(Error::new(create_error("Unexpected end of code"))),
+			None => Err(create_error("Unexpected end of code.")),
 		}
 	}
 

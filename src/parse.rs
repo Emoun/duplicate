@@ -1,5 +1,6 @@
 use crate::{
 	error::Error,
+	pretty_errors::{NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS},
 	substitute::{duplicate_and_substitute, Substitution},
 	token_iter::{get_ident, is_ident, is_semicolon, SubGroupIter, Token, TokenIter},
 	DuplicationDefinition, Result, SubstitutionGroup,
@@ -57,6 +58,7 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 					}
 				}
 			}
+
 			Ok(DuplicationDefinition {
 				global_substitutions,
 				duplications: reorder,
@@ -254,7 +256,14 @@ fn validate_short_attr<'a, T: SubGroupIter<'a>>(
 		.collect();
 	validate_short_get_all_substitution_goups(iter, &mut result)?;
 
-	Ok(result)
+	if result[0].2.is_empty()
+	{
+		Err(Error::new("No substitution groups.").hint(SHORT_SYNTAX_NO_GROUPS))
+	}
+	else
+	{
+		Ok(result)
+	}
 }
 
 /// Assuming use of the short syntax, gets the initial list of substitution
@@ -265,9 +274,18 @@ fn validate_short_get_identifiers<'a, T: SubGroupIter<'a>>(
 {
 	let mut result = Vec::new();
 	while let Some(ident) = iter.extract_simple(
-		|t| is_ident(t, None) || is_semicolon(t),
+		|t| is_ident(t, None) || (is_semicolon(t) && !result.is_empty()),
 		|t| get_ident(t),
-		Some("substitution identifier or ';'"),
+		Some(
+			if result.is_empty()
+			{
+				NO_INVOCATION
+			}
+			else
+			{
+				"substitution_identifier or ';'"
+			},
+		),
 	)?
 	{
 		result.push((
