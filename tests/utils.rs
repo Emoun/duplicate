@@ -1,6 +1,6 @@
 use std::{
 	ffi::OsString,
-	fs::{DirEntry, File},
+	fs::File,
 	io::{BufRead, BufReader, Write},
 	path::Path,
 };
@@ -51,7 +51,7 @@ pub struct ExpansionTester<'a>
 	testing_dir: &'a str,
 	/// Source sub-directory, and how it's files should be treated before
 	/// testing
-	source_dirs: Vec<(&'a str, Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>)>,
+	source_dirs: Vec<(&'a str, Vec<Box<dyn Fn(&Path, &dyn AsRef<Path>)>>)>,
 
 	/// Whether this tester is testing errors, i.e. that expansions should fail
 	error_tests: bool,
@@ -89,7 +89,7 @@ impl<'a> ExpansionTester<'a>
 	pub fn add_source_dir(
 		&mut self,
 		dir: &'a str,
-		actions: Vec<Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>>,
+		actions: Vec<Box<dyn Fn(&Path, &dyn AsRef<Path>)>>,
 	)
 	{
 		self.source_dirs.push((dir, actions));
@@ -117,7 +117,7 @@ impl<'a> ExpansionTester<'a>
 					{
 						for action in actions.iter()
 						{
-							action(&file, &testing_dir);
+							action(&file.path(), &testing_dir);
 						}
 					}
 					else
@@ -161,21 +161,33 @@ impl<'a> ExpansionTester<'a>
 
 	/// Generates an action that copies the file given to the testing
 	/// directory with the given prefix added to its name.
-	pub fn copy_with_prefix(prefix: &str) -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	pub fn copy_with_prefix(prefix: &str) -> Box<dyn Fn(&Path, &dyn AsRef<Path>)>
+	{
+		Self::copy_with_prefix_postfix(prefix, "")
+	}
+
+	/// Generates an action that copies the file given to the testing
+	/// directory with the given prefix added to its name.
+	pub fn copy_with_prefix_postfix(
+		prefix: &str,
+		postfix: &str,
+	) -> Box<dyn Fn(&Path, &dyn AsRef<Path>)>
 	{
 		let prefix = OsString::from(prefix);
+		let postfix = OsString::from(postfix);
 		Box::new(move |file, destination| {
 			let mut destination_file = destination.as_ref().to_path_buf();
 			let mut file_name = prefix.clone();
-			file_name.push(file.file_name());
+			file_name.push(file.file_name().unwrap());
+			file_name.push(postfix.clone());
 			destination_file.push(file_name);
-			std::fs::copy(&file.path(), &destination_file).unwrap();
+			std::fs::copy(file, &destination_file).unwrap();
 		})
 	}
 
 	/// Generates an action that simply copies the file given to the testing
 	/// directory.
-	pub fn copy() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	pub fn copy() -> Box<dyn Fn(&Path, &dyn AsRef<Path>)>
 	{
 		Self::copy_with_prefix("")
 	}
@@ -231,22 +243,34 @@ impl<'a> ExpansionTester<'a>
 	///   pub struct name();
 	/// }
 	/// ```
-	pub fn duplicate_for_inline() -> Box<dyn Fn(&DirEntry, &dyn AsRef<Path>)>
+	pub fn duplicate_for_inline() -> Box<dyn Fn(&Path, &dyn AsRef<Path>)>
 	{
-		Box::new(|file, destination| {
+		Self::duplicate_for_inline_with_prefix("")
+	}
+
+	/// like 'duplicate_for_inline' except adds the given prefix to the name of
+	/// the original files.
+	pub fn duplicate_for_inline_with_prefix(
+		prefix: &str,
+	) -> Box<dyn '_ + Fn(&Path, &dyn AsRef<Path>)>
+	{
+		Box::new(move |file, destination| {
 			let mut inline_file_name = OsString::from("inline_");
-			inline_file_name.push(file.file_name());
+			inline_file_name.push(prefix);
+			inline_file_name.push(file.file_name().unwrap());
+			let mut new_file_name = OsString::from(prefix);
+			new_file_name.push(file.file_name().unwrap());
 
 			let mut dest_file_path = destination.as_ref().to_path_buf();
 			let mut dest_inline_file_path = destination.as_ref().to_path_buf();
 
-			dest_file_path.push(file.file_name());
+			dest_file_path.push(new_file_name);
 			dest_inline_file_path.push(inline_file_name);
 
 			let mut dest_file = File::create(dest_file_path).unwrap();
 			let mut dest_inline_file = File::create(dest_inline_file_path).unwrap();
 
-			for line in BufReader::new(File::open(file.path()).unwrap()).lines()
+			for line in BufReader::new(File::open(file).unwrap()).lines()
 			{
 				let line = line.unwrap();
 				let line = line.trim();
