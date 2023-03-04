@@ -1,0 +1,10 @@
+       Hint: All substitution groups must define the same substitution identifiers.
+       Example:
+           [
+               ident1  [sub1]
+               ident2  [sub2]
+           ]
+           [
+               ident1  [sub3]
+               ident2  [sub4]
+           ]

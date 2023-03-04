@@ -36,3 +36,31 @@ Example:
     [sub1] [sub2];
    1^^^^^^ ^^^^^^2
 "#;
+
+/// For when verbose syntax substitution group has too few or too many
+/// substitutions
+pub(crate) const VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS: &'static str = r#"Hint: All substitution groups must define the same substitution identifiers.
+Example:
+    [
+        ident1  [sub1]
+        ident2  [sub2]
+    ]
+    [
+        ident1  [sub3]
+        ident2  [sub4]
+    ]
+"#;
+
+/// For when verbose syntax substitution identifier has too few or too many
+/// arguments
+pub(crate) const VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS: &'static str = r#"Hint: The same substitution identifier must take the same number of argument across all substitution groups.
+Example:
+    [
+        ident1(arg1, arg2)  [sub1 arg1 arg2]
+               ^^^^^^^^^^
+    ]
+    [
+        ident1(arg1, arg2)  [arg1 arg2 sub2]
+               ^^^^^^^^^^
+    ]
+"#;

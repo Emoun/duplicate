@@ -1,2 +1,2 @@
- | fn from(x: refs(Bits<1, false>)) -> bool {
+6 | fn from(x: refs(Bits<1, false>)) -> bool {
   |                 ^^^^

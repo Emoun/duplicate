@@ -281,7 +281,7 @@ impl<'a> ExpansionTester<'a>
 					{
 						dest_file.write_all("#[duplicate_item(".as_bytes()).unwrap();
 						dest_inline_file
-							.write_all("duplicate!{\n[".as_bytes())
+							.write_all("duplicate!{[".as_bytes())
 							.unwrap();
 					},
 					")]//duplicate_end" =>

@@ -1,6 +1,9 @@
 use crate::{
 	error::Error,
-	pretty_errors::{NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS},
+	pretty_errors::{
+		NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS, VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS,
+		VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
+	},
 	substitute::{duplicate_and_substitute, Substitution},
 	token_iter::{get_ident, is_ident, is_semicolon, SubGroupIter, Token, TokenIter},
 	DuplicationDefinition, Result, SubstitutionGroup,
@@ -21,58 +24,60 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 	let mut iter = TokenIter::new(attr, &empty_global, std::iter::empty());
 	let global_substitutions = validate_global_substitutions(&mut iter)?;
 
-	// First try verbose syntax
-	match validate_verbose_invocation(&mut iter, global_substitutions.substitutions.is_empty())
+	if let (Ok(None), false) = (iter.peek(), global_substitutions.substitutions.is_empty())
+	{
+		// Accept global substitutions on their own
+		Ok(DuplicationDefinition {
+			global_substitutions,
+			duplications: Vec::new(),
+		})
+	}
+	else if let Some(dups) = validate_verbose_invocation(&mut iter)?
+	{
+		Ok(DuplicationDefinition {
+			global_substitutions,
+			duplications: dups,
+		})
+	}
+	else
 	{
 		// Otherwise, try short syntax
-		Err(_) =>
+		let substitutions = validate_short_attr(iter)?;
+		let mut reorder = Vec::new();
+
+		for _ in 0..substitutions[0].2.len()
 		{
-			let substitutions = validate_short_attr(iter)?;
-			let mut reorder = Vec::new();
+			reorder.push(SubstitutionGroup::new());
+		}
 
-			for _ in 0..substitutions[0].2.len()
+		for (ident, args, subs) in substitutions
+		{
+			for (idx, sub) in subs.into_iter().enumerate()
 			{
-				reorder.push(SubstitutionGroup::new());
-			}
-
-			for (ident, args, subs) in substitutions
-			{
-				for (idx, sub) in subs.into_iter().enumerate()
+				let substitution = Substitution::new(
+					&args,
+					TokenIter::new(sub, &SubstitutionGroup::new(), std::iter::empty()),
+				);
+				if let Ok(substitution) = substitution
 				{
-					let substitution = Substitution::new(
-						&args,
-						TokenIter::new(sub, &SubstitutionGroup::new(), std::iter::empty()),
-					);
-					if let Ok(substitution) = substitution
-					{
-						reorder[idx].add_substitution(
-							Ident::new(&ident.clone(), Span::call_site()),
-							substitution,
-						)?;
-					}
-					else
-					{
-						return Err(Error::new(
-							"Duplicate internal error: Failed at creating substitution",
-						));
-					}
+					reorder[idx].add_substitution(
+						Ident::new(&ident.clone(), Span::call_site()),
+						substitution,
+					)?;
+				}
+				else
+				{
+					return Err(Error::new(
+						"Duplicate internal error: Failed at creating substitution",
+					));
 				}
 			}
+		}
 
-			Ok(DuplicationDefinition {
-				global_substitutions,
-				duplications: reorder,
-			})
-		},
-		verbose_result =>
-		{
-			verbose_result.map(|dups| {
-				DuplicationDefinition {
-					global_substitutions,
-					duplications: dups,
-				}
-			})
-		},
+		Ok(DuplicationDefinition {
+			global_substitutions,
+			duplications: reorder,
+		})
 	}
 }
 
@@ -104,46 +109,48 @@ fn validate_global_substitutions<'a, T: SubGroupIter<'a>>(
 /// Validates that a duplicate invocation uses the verbose syntax, and returns
 /// all the substitutions that should be made.
 ///
-/// If `err_on_no_subs` is true, if no substitutions are found, an error is
-/// returned. Otherwise, no substitutions will results in Ok.
+/// Returns 'Some' if the tokens given definitely represent the use of verbose
+/// syntax, even though it might still contain errors.
+/// Returns 'None' if an error occurred before verbose syntax was recognized
 fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
-	err_on_no_subs: bool,
-) -> Result<Vec<SubstitutionGroup>>
+) -> Result<Option<Vec<SubstitutionGroup>>>
 {
-	if err_on_no_subs && !iter.has_next()?
+	if let Ok(Some(Token::Group(Delimiter::Bracket, _, _))) = iter.peek()
 	{
-		return Err(Error::new("No substitutions found."));
-	}
+		let mut sub_groups = Vec::new();
 
-	let mut sub_groups = Vec::new();
-
-	let mut substitution_ids = None;
-	while iter.has_next()?
-	{
-		let (body, span) = iter.next_group(Some(Delimiter::Bracket)).map_err(|err| {
-			err.hint(
-				"Hint: When using verbose syntax, a substitutions must be enclosed in a \
-				 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ \
-				 substitution2 ]\n]",
-			)
-		})?;
-		sub_groups.push(extract_verbose_substitutions(
-			body,
-			span,
-			&substitution_ids,
-		)?);
-		if None == substitution_ids
+		let mut substitution_ids = None;
+		while iter.has_next()?
 		{
-			substitution_ids = Some(
-				sub_groups[0]
-					.identifiers_with_args()
-					.map(|(ident, count)| (ident.clone(), count))
-					.collect(),
-			)
+			let (body, span) = iter.next_group(Some(Delimiter::Bracket)).map_err(|err| {
+				err.hint(
+					"Hint: When using verbose syntax, a substitutions must be enclosed in a \
+					 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ \
+					 substitution2 ]\n]",
+				)
+			})?;
+			sub_groups.push(extract_verbose_substitutions(
+				body,
+				span,
+				&substitution_ids,
+			)?);
+			if None == substitution_ids
+			{
+				substitution_ids = Some(
+					sub_groups[0]
+						.identifiers_with_args()
+						.map(|(ident, count)| (ident.clone(), count))
+						.collect(),
+				)
+			}
 		}
+		Ok(Some(sub_groups))
 	}
-	Ok(sub_groups)
+	else
+	{
+		Ok(None)
+	}
 }
 
 /// Extracts a substitution identifier followed by
@@ -199,47 +206,71 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 		return Err(Error::new("No substitution groups found.").span(iter_span));
 	}
 
+	// Map idents to string reference so we can use HashSet::difference
+	let expected_idents: HashSet<_> = existing.as_ref().map_or(HashSet::new(), |idents| {
+		idents
+			.iter()
+			.map(|(ident, count)| (ident, count.clone()))
+			.collect()
+	});
+
 	let mut substitutions = SubstitutionGroup::new();
 	let mut stream = iter;
 
 	while let Ok((ident, substitution)) = extract_inline_substitution(&mut stream)
 	{
+		if !expected_idents.is_empty()
+			&& !expected_idents.contains(&(&ident.to_string(), substitution.argument_count()))
+		{
+			let (msg, _hint) = if expected_idents
+				.iter()
+				.find(|(i, _)| **i == ident.to_string())
+				.is_some()
+			{
+				(
+					"Wrong argument count for substitution identifier.",
+					VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
+				)
+			}
+			else
+			{
+				(
+					"Unexpected substitution identifier.",
+					VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS,
+				)
+			};
+			return Err(Error::new(msg).span(ident.span()).hint(_hint));
+		}
 		substitutions.add_substitution(ident, substitution)?;
 	}
-	// Check no substitution idents are missing or with wrong argument counts.
-	if let Some(idents) = existing
-	{
-		let sub_idents: HashSet<_> = substitutions.identifiers_with_args().collect();
-		// Map idents to string reference so we can use HashSet::difference
-		let idents = idents
-			.iter()
-			.map(|(ident, count)| (ident, count.clone()))
-			.collect();
-		let diff: Vec<_> = sub_idents.difference(&idents).collect();
 
-		if diff.len() > 0
+	// Check no substitution idents are missing
+	let found_idents: HashSet<_> = substitutions.identifiers_with_args().collect();
+	let missing: Vec<_> = expected_idents.difference(&found_idents).collect();
+
+	if missing.len() > 0
+	{
+		let mut hint = String::new();
+		#[cfg(feature = "pretty_errors")]
 		{
-			let mut msg: String = "Invalid substitutions.\nThe following identifiers were not \
-			                       found in previous substitution groups or had different \
-			                       arguments:\n"
-				.into();
-			for ident in diff
+			hint += "Missing";
+
+			hint += " substitution for:";
+			for ident in missing
 			{
-				msg.push_str(&ident.0.to_string());
-				msg.push_str("(");
-				if ident.1 > 0
-				{
-					msg.push_str("_");
-				}
-				for _ in 1..(ident.1)
-				{
-					msg.push_str(",_")
-				}
-				msg.push_str(")");
+				hint += " '";
+				hint += &ident.0.to_string();
+				hint += "'";
 			}
-			return Err(Error::new(msg).span(iter_span));
+			hint += "\n";
 		}
+		hint += VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS;
+
+		return Err(Error::new("Incomplete substitution group.")
+			.span(iter_span)
+			.hint(hint));
 	}
+
 	Ok(substitutions)
 }
 

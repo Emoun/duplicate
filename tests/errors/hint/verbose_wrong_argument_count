@@ -1,0 +1,10 @@
+       Hint: The same substitution identifier must take the same number of argument across all substitution groups.
+       Example:
+           [
+               ident1(arg1, arg2)  [sub1 arg1 arg2]
+                      ^^^^^^^^^^
+           ]
+           [
+               ident1(arg1, arg2)  [arg1 arg2 sub2]
+                      ^^^^^^^^^^
+           ]
