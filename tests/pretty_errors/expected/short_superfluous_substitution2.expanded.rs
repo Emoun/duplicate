@@ -1,0 +1,6 @@
+       Hint: Number of substitutions must match the number of substitutions identifiers.
+       Example:
+           ident1 ident2;
+          1^^^^^^ ^^^^^^2
+           [sub1] [sub2];
+          1^^^^^^ ^^^^^^2

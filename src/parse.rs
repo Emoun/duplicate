@@ -320,12 +320,36 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 	{
 		for (_, _, streams) in result.iter_mut()
 		{
-			let (group, _) = iter.next_group(Some(Delimiter::Bracket))?;
+			#[allow(unused_mut)]
+			let mut error = crate::pretty_errors::SHORT_SYNTAX_MISSING_SUB_BRACKET;
+			#[cfg(feature = "pretty_errors")]
+			{
+				if let Ok(Some(Token::Simple(t))) = iter.peek()
+				{
+					if is_semicolon(t)
+					{
+						error = crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT;
+					}
+				}
+			}
+
+			let (group, _) = iter
+				.next_group(Some(Delimiter::Bracket))
+				.map_err(|err| err.hint(error))?;
 			streams.push(group.to_token_stream());
 		}
 
 		if iter.has_next()?
 		{
+			#[cfg(feature = "pretty_errors")]
+			{
+				if let Ok((_, span)) = iter.next_group(Some(Delimiter::Bracket))
+				{
+					return Err(Error::new("Unexpected delimiter.")
+						.span(span)
+						.hint(crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT));
+				}
+			}
 			iter.expect_semicolon()?;
 		}
 	}
