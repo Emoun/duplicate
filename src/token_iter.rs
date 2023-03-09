@@ -323,7 +323,7 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 	/// Otherwise returns an error.
 	pub fn expect_semicolon(&mut self) -> Result<()>
 	{
-		self.expect_simple(is_semicolon, Some(";"))
+		self.expect_simple(is_semicolon, Some("';'"))
 	}
 
 	/// Gets the body and span of the next group.
@@ -405,6 +405,22 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 	pub fn has_next(&mut self) -> Result<bool>
 	{
 		self.peek().map_or_else(|e| Err(e), |t| Ok(t.is_some()))
+	}
+
+	/// Whether there is a next token and it is a ';'
+	#[cfg_attr(not(feature = "pretty_errors"), allow(dead_code))]
+	pub fn has_next_semicolon(&mut self) -> Result<bool>
+	{
+		self.peek().map_or_else(
+			|e| Err(e),
+			|t| {
+				Ok(match t
+				{
+					Some(Token::Simple(t)) if is_semicolon(t) => true,
+					_ => false,
+				})
+			},
+		)
 	}
 
 	/// Peek at the next token to be produced without consuming it

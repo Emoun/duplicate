@@ -1,0 +1,4 @@
+       Hint: Each global substitution should end with ';'
+       Example:
+           name   [sub1];
+           typ    [sub2];

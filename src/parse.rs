@@ -1,8 +1,8 @@
 use crate::{
 	error::Error,
 	pretty_errors::{
-		NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS, VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS,
-		VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
+		GLOBAL_SUB_SEMICOLON, NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS,
+		VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS, VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
 	},
 	substitute::{duplicate_and_substitute, Substitution},
 	token_iter::{get_ident, is_ident, is_semicolon, SubGroupIter, Token, TokenIter},
@@ -100,7 +100,8 @@ fn validate_global_substitutions<'a, T: SubGroupIter<'a>>(
 
 		if iter.has_next()?
 		{
-			iter.expect_semicolon()?;
+			iter.expect_semicolon()
+				.map_err(|err| err.hint(GLOBAL_SUB_SEMICOLON))?;
 		}
 	}
 	Ok(sub_group)
@@ -159,14 +160,9 @@ fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 	stream: &mut TokenIter<'a, T>,
 ) -> Result<(Ident, Substitution)>
 {
-	let ident = stream.extract_identifier(Some("substitution identifier"))?;
+	let ident = stream.extract_identifier(Some("a substitution identifier"))?;
 	let param_group = stream.next_group(Some(Delimiter::Parenthesis));
-	let substitution = stream.next_group(Some(Delimiter::Bracket)).map_err(|err| {
-		err.hint(
-			"Hint: A substitution identifier should be followed by a group containing the code to \
-			 be inserted instead of any occurrence of the identifier.",
-		)
-	});
+	let substitution = stream.next_group(Some(Delimiter::Bracket));
 
 	if let Ok((params, span)) = param_group
 	{
@@ -185,7 +181,9 @@ fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 	else
 	{
 		// No parameters, get substitution
-		substitution.map(|(sub, _)| Substitution::new_simple(sub.process_all()))
+		substitution
+			.map(|(sub, _)| Substitution::new_simple(sub.process_all()))
+			.map_err(|old_err| Error::new("Expected '(' or '['.").span(old_err.extract().0))
 	}
 	.or_else(|err| {
 		stream.push_front(Token::Simple(TokenTree::Ident(ident.clone())));
@@ -217,8 +215,21 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 	let mut substitutions = SubstitutionGroup::new();
 	let mut stream = iter;
 
-	while let Ok((ident, substitution)) = extract_inline_substitution(&mut stream)
+	while stream.has_next()?
 	{
+		#[allow(unused_mut)]
+		let mut hint: Option<&str> = None;
+
+		#[cfg(feature = "pretty_errors")]
+		{
+			if stream.has_next_semicolon()?
+			{
+				hint = Some(crate::pretty_errors::VERBOSE_SEMICOLON);
+			}
+		}
+
+		let (ident, substitution) = extract_inline_substitution(&mut stream)
+			.map_err(|err| hint.into_iter().fold(err, |err, hint| err.hint(hint)))?;
 		if !expected_idents.is_empty()
 			&& !expected_idents.contains(&(&ident.to_string(), substitution.argument_count()))
 		{
@@ -355,12 +366,9 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 			let mut error = crate::pretty_errors::SHORT_SYNTAX_MISSING_SUB_BRACKET;
 			#[cfg(feature = "pretty_errors")]
 			{
-				if let Ok(Some(Token::Simple(t))) = iter.peek()
+				if iter.has_next_semicolon()?
 				{
-					if is_semicolon(t)
-					{
-						error = crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT;
-					}
+					error = crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT;
 				}
 			}
 

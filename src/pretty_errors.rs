@@ -64,3 +64,19 @@ Example:
                ^^^^^^^^^^
     ]
 "#;
+
+/// For when verbose syntax substitution pair is followed by a semicolon
+pub(crate) const VERBOSE_SEMICOLON: &'static str = r#"Hint: Verbose syntax does not accept semicolons between substitutions.
+Example:
+    [
+        name    [sub1] // No semicolon
+        ty      [u32] // No semicolon
+    ]
+"#;
+
+/// For when global substitutions aren't followed by ';'
+pub(crate) const GLOBAL_SUB_SEMICOLON: &'static str = r#"Hint: Each global substitution should end with ';'
+Example:
+    name   [sub1];
+    typ    [sub2];
+"#;
