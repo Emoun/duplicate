@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2023-03-10
+
 ### Changed
 
 - Overhauled the `pretty_errors` feature to more consistently provide useful hints and code highlights. See [#19](https://github.com/Emoun/duplicate/issues/19).
