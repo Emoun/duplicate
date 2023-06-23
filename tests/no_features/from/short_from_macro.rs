@@ -81,7 +81,7 @@ macro_rules! test_ident_from_macro_statement_variable{
 			$name;	[7]
 		)]//duplicate_end
 		fn some_fn7(){
-			$name;
+			//$name;
 		}
 		//item_end
 	}
