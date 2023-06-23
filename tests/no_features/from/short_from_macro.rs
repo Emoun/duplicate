@@ -76,7 +76,7 @@ macro_rules! test_ident_from_macro_pattern_variable{
 test_ident_from_macro_pattern_variable!(name);
 
 macro_rules! test_ident_from_macro_statement_variable{
-	{ $name:stmt } => {
+	{ $name:tt } => {
 		#[duplicate_item(
 			$name;	[7]
 		)]//duplicate_end
