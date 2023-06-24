@@ -55,6 +55,7 @@ pub fn get_source(prefix: &str) -> Box<dyn '_ + Fn(&Path, &dyn AsRef<Path>)>
 ///
 /// Only tests source files that have a hint file.
 #[cfg(feature = "pretty_errors")]
+#[rustversion::since(1.43)]
 #[test]
 fn hint_expansion_errors()
 {
