@@ -99,7 +99,14 @@ macro_rules! test_ident_from_macro_statement_variable{
 		//item_end
 	}
 }
+// We remove this test case for rust version <1.43 because the expansion
+// of $name in 1.42 will produce an additional ';', which will cause 'duplicate'
+// to throw an error (because there would be 2 ';' after each other in "$name ; [7]".
+#[rustversion::since(1.43)]
 test_ident_from_macro_statement_variable!(name);
+// We add the expected expansion result so the test succeeds
+#[rustversion::before(1.43)]
+fn some_fn7(){7;}
 
 macro_rules! test_ident_from_macro_token_tree_variable{
 	{ $name:tt } => {
