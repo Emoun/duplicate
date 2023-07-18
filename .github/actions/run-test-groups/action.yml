@@ -24,7 +24,8 @@ runs:
       run: |
         # Install dependencies of 'macrotest'
         rustup toolchain install nightly
-        cargo install --locked cargo-expand
+        # We need cargo-expand <1.0.60 as it doesn't suppport rustc v1.42
+        cargo install --locked --version 1.0.59 cargo-expand
         # Set the rust version to use for this build
         rustup default ${{ inputs.rust-version }}
     - if: inputs.minimal-versions == 'true'
