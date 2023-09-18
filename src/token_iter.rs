@@ -453,7 +453,10 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 				return self.peek();
 			}
 		}
-		new_front.map_or((), |t| self.unconsumed.push_front(t));
+		if let Some(t) = new_front
+		{
+			self.unconsumed.push_front(t);
+		}
 		Ok(self.unconsumed.front())
 	}
 
