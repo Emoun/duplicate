@@ -11,6 +11,54 @@ use crate::{
 use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 use std::collections::HashSet;
 
+/// Parses all global substitutions, returning them.
+///
+/// If there are other tokens than global substitutions, returns an error.
+pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<SubstitutionGroup>
+{
+	let empty_global = SubstitutionGroup::new();
+	let mut iter = TokenIter::new(attr, &empty_global, std::iter::empty());
+	let global_substitutions = validate_global_substitutions(&mut iter)?;
+
+	if let Ok(None) = iter.peek()
+	{
+		// Accept global substitutions on their own
+		if global_substitutions.substitutions.is_empty()
+		{
+			// There are no global substitutions, return error requiring it
+			Err(iter
+				.extract_identifier(Some("a substitution identifier"))
+				.unwrap_err())
+		}
+		else
+		{
+			Ok(global_substitutions)
+		}
+	}
+	else
+	{
+		// There are more tokens, just try to get another substitution and return its
+		// error
+		#[cfg_attr(not(feature = "pretty_errors"), allow(unused_mut))]
+		let mut err = extract_inline_substitution(&mut iter).unwrap_err();
+
+		#[cfg(feature = "pretty_errors")]
+		{
+			if validate_short_get_identifiers(&mut iter.clone()).is_ok()
+				|| validate_verbose_invocation(&mut iter)
+					.map(|res| res.is_some())
+					.unwrap_or(false)
+			{
+				err = err.hint(
+					"Hint: Only global substitutions are allowed. Try 'duplicate' or \
+					 'duplicate_item'.",
+				);
+			}
+		}
+		Err(err)
+	}
+}
+
 /// Parses the invocation of duplicate, returning all the substitutions that
 /// should be made to code.
 ///

@@ -722,7 +722,7 @@ use parse::*;
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream};
 #[cfg(feature = "pretty_errors")]
 use proc_macro_error::{abort, proc_macro_error};
-use std::collections::HashMap;
+use std::{collections::HashMap, iter::empty};
 use substitute::*;
 
 /// Duplicates the item and substitutes specific identifiers for different code
@@ -1017,6 +1017,48 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 	}
 }
 
+/// Substitutes specific identifiers for different code
+/// snippets.
+///
+/// ```
+/// # struct Some<T1,T2>(T1,T2);
+/// # struct Complex<T>(T);
+/// # struct Type<T>(T);
+/// # struct WeDont<T1,T2,T3>(T1,T2,T3);
+/// # struct Want();
+/// # struct To();
+/// # struct Repeat();
+/// # struct Other();
+/// # use duplicate::substitute_item;
+/// #[substitute_item(
+///   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
+///   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
+/// )]
+/// fn method(
+///   arg1: typ1,
+///   arg2: typ2)
+///   -> (typ1, typ2)
+/// {
+///  # /*
+///   ...
+///  # */
+///  # unimplemented!()
+/// }
+/// ```
+///
+/// The global substitutions (`typ1` and `typ2`) are substituted in both
+/// their occurrences. Global substitutions are `;` separated.
+#[proc_macro_attribute]
+#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
+pub fn substitute_item(attr: TokenStream, item: TokenStream) -> TokenStream
+{
+	match substitute_impl(attr, item)
+	{
+		Ok(result) => result,
+		Err(err) => abort(err),
+	}
+}
+
 /// Duplicates the given code and substitutes specific identifiers
 /// for different code snippets in each duplicate.
 ///
@@ -1095,8 +1137,71 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 #[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(stream: TokenStream) -> TokenStream
 {
+	inline_macro_impl(stream, duplicate_impl)
+}
+
+/// Substitutes specific identifiers for different code
+/// snippets.
+///
+/// This is a function-like procedural macro version of [`substitute_item`].
+/// It's functionality is the exact same. The only difference is that
+/// `substitute` doesn't only substitute the following item, but all code given
+/// to it after the invocation block.
+///
+/// ```
+/// # struct Some<T1,T2>(T1,T2);
+/// # struct Complex<T>(T);
+/// # struct Type<T>(T);
+/// # struct WeDont<T1,T2,T3>(T1,T2,T3);
+/// # struct Want();
+/// # struct To();
+/// # struct Repeat();
+/// # struct Other();
+/// # use duplicate::substitute;
+///
+/// substitute!{
+///   [
+///     typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
+///     typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
+///   ]
+///   fn method(
+///     arg1: typ1,
+///     arg2: typ2)
+///     -> (typ1, typ2)
+///   {
+///    # /*
+///     ...
+///    # */
+///    # unimplemented!()
+///   }
+/// }
+/// ```
+///
+/// The global substitutions (`typ1` and `typ2`) are substituted in both
+/// their occurrences. Global substitutions are `;` separated.
+#[proc_macro]
+#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
+pub fn substitute(stream: TokenStream) -> TokenStream
+{
+	inline_macro_impl(stream, substitute_impl)
+}
+
+/// A result that specified where in the token stream the error occured
+/// and is accompanied by a message.
+type Result<T> = std::result::Result<T, Error>;
+
+/// Parses an inline macro invocation where the invocation syntax is within
+/// initial brackets.
+///
+/// Extracts the invocation syntax and body to be duplicated/substituted
+/// and passes them to the given function.
+fn inline_macro_impl(
+	stream: TokenStream,
+	f: fn(TokenStream, TokenStream) -> Result<TokenStream>,
+) -> TokenStream
+{
 	let empty_globals = SubstitutionGroup::new();
-	let mut iter = TokenIter::new(stream, &empty_globals, std::iter::empty());
+	let mut iter = TokenIter::new(stream, &empty_globals, empty());
 
 	let result = match iter.next_group(Some(Delimiter::Bracket))
 	{
@@ -1104,7 +1209,7 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 		{
 			let invocation_body = invocation.to_token_stream();
 
-			duplicate_impl(invocation_body, iter.to_token_stream())
+			f(invocation_body, iter.to_token_stream())
 		},
 		Err(err) => Err(err.hint("Expected invocation within brackets: [...]")),
 	};
@@ -1116,11 +1221,7 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 	}
 }
 
-/// A result that specified where in the token stream the error occured
-/// and is accompanied by a message.
-type Result<T> = std::result::Result<T, Error>;
-
-/// Implements the macro.
+/// Implements the duplicate macros.
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 {
 	let dup_def = parse_invocation(attr)?;
@@ -1130,6 +1231,12 @@ fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 		&dup_def.global_substitutions,
 		dup_def.duplications.iter(),
 	)
+}
+
+/// Implements the substitute macros
+fn substitute_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
+{
+	duplicate_and_substitute(item, &parse_global_substitutions_only(attr)?, empty())
 }
 
 /// Terminates with an error and produces the given message.
