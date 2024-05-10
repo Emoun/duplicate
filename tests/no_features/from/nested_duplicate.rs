@@ -1,7 +1,7 @@
 use duplicate::*;
 struct Example{one: u8, two: u8}
 // Tests nesting in substitutions
-#[duplicate_item(
+#[substitute_item(
 	members [
 		duplicate!{
 			[
@@ -22,13 +22,14 @@ impl Example {
 //item_end
 
 // Tests nesting between global substitutions
-#[duplicate_item(
+#[substitute_item(
 	name [StructName1];
 	duplicate!{
 		[
-			typ [u8]
+			nam typ;
+			[typ1 ] [u8];
 		]
-		typ1 [typ];
+		nam [typ];
 	}
 	typ2 [u16];
 )]//duplicate_end
@@ -41,7 +42,7 @@ struct name(typ1,typ2);
 	[TypeName21]
 	duplicate!{
 		[
-			typ [u8]
+			typ; [u8]
 		]
 		[typ]
 	}

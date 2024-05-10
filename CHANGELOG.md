@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `substitute!` and `substitute_item` allow the use of global substitutions without duplication. See [#49](https://github.com/Emoun/duplicate/issues/49).
+
 ### Changed
 
 - [BREAKING] Increased base MSRV to 1.65.
+- [BREAKING] `duplicate!` and `duplicate_item` no longer allow using exclusively global substitutions.
 
 ## [1.0.0] - 2023-03-10
 

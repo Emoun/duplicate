@@ -539,8 +539,8 @@
 //! # struct To();
 //! # struct Repeat();
 //! # struct Other();
-//! # use duplicate::duplicate_item;
-//! #[duplicate_item(
+//! # use duplicate::substitute_item;
+//! #[substitute_item(
 //!   typ1 [Some<Complex<()>, Type<WeDont<Want, To, Repeat>>>];
 //!   typ2 [Some<Other, Complex<Type<(To, Repeat)>>>];
 //! )]
@@ -1224,7 +1224,7 @@ fn inline_macro_impl(
 /// Implements the duplicate macros.
 fn duplicate_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 {
-	let dup_def = parse_invocation(attr)?;
+	let dup_def = parse_duplicate_invocation(attr)?;
 
 	duplicate_and_substitute(
 		item,

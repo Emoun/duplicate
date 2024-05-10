@@ -1,7 +1,7 @@
 use crate::{
 	error::Error,
 	pretty_errors::{
-		GLOBAL_SUB_SEMICOLON, NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS,
+		GLOBAL_SUB_SEMICOLON, NO_GROUPS, NO_GROUPS_HINT, NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS,
 		VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS, VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
 	},
 	substitute::{duplicate_and_substitute, Substitution},
@@ -66,7 +66,7 @@ pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<Subst
 /// substitutions that should be applied to all duplicates but don't on their
 /// own indicate a duplicate. Then comes a list of substitution groups, each of
 /// which indicates on duplicate.
-pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinition>
+pub(crate) fn parse_duplicate_invocation(attr: TokenStream) -> Result<DuplicationDefinition>
 {
 	let empty_global = SubstitutionGroup::new();
 	let mut iter = TokenIter::new(attr, &empty_global, std::iter::empty());
@@ -74,11 +74,8 @@ pub(crate) fn parse_invocation(attr: TokenStream) -> Result<DuplicationDefinitio
 
 	if let (Ok(None), false) = (iter.peek(), global_substitutions.substitutions.is_empty())
 	{
-		// Accept global substitutions on their own
-		Ok(DuplicationDefinition {
-			global_substitutions,
-			duplications: Vec::new(),
-		})
+		// Do not accept no duplicates
+		Err(Error::new(NO_GROUPS).hint(NO_GROUPS_HINT))
 	}
 	else if let Some(dups) = validate_verbose_invocation(&mut iter)?
 	{
@@ -249,7 +246,7 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 {
 	if !iter.has_next()?
 	{
-		return Err(Error::new("No substitution groups found.").span(iter_span));
+		return Err(Error::new(NO_GROUPS).span(iter_span));
 	}
 
 	// Map idents to string reference so we can use HashSet::difference
@@ -348,7 +345,7 @@ fn validate_short_attr<'a, T: SubGroupIter<'a>>(
 
 	if result[0].2.is_empty()
 	{
-		Err(Error::new("No substitution groups.").hint(SHORT_SYNTAX_NO_GROUPS))
+		Err(Error::new(NO_GROUPS).hint(SHORT_SYNTAX_NO_GROUPS))
 	}
 	else
 	{
@@ -452,7 +449,7 @@ pub(crate) fn invoke_nested<'a, T: SubGroupIter<'a>>(
 	let (mut nested_body_iter, _) = iter.next_group(None)?;
 
 	let (nested_invocation, _) = nested_body_iter.next_group(Some(Delimiter::Bracket))?;
-	let nested_dup_def = parse_invocation(nested_invocation.to_token_stream())?;
+	let nested_dup_def = parse_duplicate_invocation(nested_invocation.to_token_stream())?;
 
 	duplicate_and_substitute(
 		nested_body_iter.to_token_stream(),

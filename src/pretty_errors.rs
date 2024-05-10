@@ -11,7 +11,17 @@ Example:
 pub(crate) const NO_INVOCATION: &'static str =
 	"substitution_identifier (short syntax) or substitution group (verbose syntax)";
 
-/// For when neither syntaxes get any invocation input
+/// Basic message for when no substitution group is given, but at least one must
+/// be given
+pub(crate) const NO_GROUPS: &'static str = r#"Expected substitution group."#;
+
+/// Hint for when no substitution group is given, but at least one must be given
+pub(crate) const NO_GROUPS_HINT: &'static str = "Hint: Must specify at least one substitution \
+                                                 group, otherwise use 'substitute!' or \
+                                                 'substitute_item'";
+
+/// For when short syntax has declared substitution identifiers but no
+/// substitution groups.
 pub(crate) const SHORT_SYNTAX_NO_GROUPS: &'static str = r#"Hint: Add a substitution group after the substitution identifiers.
 Example:
 	name;
