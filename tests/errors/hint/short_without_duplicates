@@ -1,4 +1,4 @@
-       Hint: Add a substitution group after the substitution identifiers.
+       = help: Add a substitution group after the substitution identifiers.
        Example:
            name;
            [SomeSubstitution];

@@ -1,5 +1,5 @@
-       Missing substitution for: 'ty'
-       Hint: All substitution groups must define the same substitution identifiers.
+       = help: Missing substitution for: 'ty'
+       All substitution groups must define the same substitution identifiers.
        Example:
            [
                ident1  [sub1]

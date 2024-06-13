@@ -1,1 +1,1 @@
-       Hint: Must specify at least one substitution group, otherwise use 'substitute!' or 'substitute_item'
+       = help: Must specify at least one substitution group, otherwise use 'substitute!' or 'substitute_item'

@@ -17,7 +17,8 @@ exclude = ["rustfmt.toml", ".gitignore", "README.md", "CHANGELOG.md"]
 proc-macro = true
 
 [dependencies]
-proc-macro-error = { version = "1.0.4", optional = true }
+proc-macro2-diagnostics = { version = "0.10", optional = true }
+proc-macro2 = { version = "1.0.85", optional = true }
 heck = { version = "0.4.0", optional = true }
 
 [dev-dependencies]
@@ -29,9 +30,10 @@ rustversion = "1.0.7"
 
 [features]
 default = ["pretty_errors", "module_disambiguation"]
-pretty_errors = ["proc-macro-error"]
+pretty_errors = ["dep:proc-macro2-diagnostics", "dep:proc-macro2"]
 module_disambiguation = ["heck"]
 fail-on-warnings = [] # Forces compilation to fail if any warnings are given. Used in CI.
+proc-macro-error = [] # This feature is here for backwards-compatibility with the implicit feature from the no longer used `proc-macro-error` dependency.
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,4 +1,4 @@
-       Hint: All substitution groups must define the same substitution identifiers.
+       = help: All substitution groups must define the same substitution identifiers.
        Example:
            [
                ident1  [sub1]

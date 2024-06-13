@@ -264,7 +264,7 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 			let mut err = Error::new(error);
 			if let Some(expected_string) = expected
 			{
-				err = err.hint("Hint: Expected ".to_string() + expected_string + ".");
+				err = err.hint("Expected ".to_string() + expected_string + ".");
 			}
 			err
 		};

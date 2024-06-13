@@ -69,29 +69,36 @@ impl Error
 		self
 	}
 
-	/// Returns the source span of the error and a full message including a
-	/// potential hint (if applicable).
-	///
-	/// If a span wasn't specified, returns the call site span.
-	pub fn extract(self) -> (Span, String)
+	pub fn get_span(&self) -> Span
 	{
 		#[cfg(feature = "pretty_errors")]
 		{
-			(
-				self.span,
-				if !self.hint.is_empty()
-				{
-					self.msg + "\n" + self.hint.as_str()
-				}
-				else
-				{
-					self.msg
-				},
-			)
+			self.span
 		}
 		#[cfg(not(feature = "pretty_errors"))]
 		{
-			(Span::call_site(), self.msg)
+			Span::call_site()
 		}
+	}
+
+	/// Returns the source span of the error and a full message including a
+	/// potential hint (if applicable).
+	#[cfg(not(feature = "pretty_errors"))]
+	pub fn into_panic_message(self) -> String
+	{
+		self.msg
+	}
+
+	#[cfg(feature = "pretty_errors")]
+	pub fn into_diagnostic(self) -> proc_macro2_diagnostics::Diagnostic
+	{
+		use proc_macro2::Span;
+		use proc_macro2_diagnostics::{Diagnostic, Level};
+		let mut diagnostic = Diagnostic::spanned(Span::from(self.span), Level::Error, self.msg);
+		if !self.hint.is_empty()
+		{
+			diagnostic = diagnostic.help(self.hint);
+		}
+		diagnostic
 	}
 }
