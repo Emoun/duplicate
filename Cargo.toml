@@ -33,7 +33,6 @@ default = ["pretty_errors", "module_disambiguation"]
 pretty_errors = ["dep:proc-macro2-diagnostics", "dep:proc-macro2"]
 module_disambiguation = ["heck"]
 fail-on-warnings = [] # Forces compilation to fail if any warnings are given. Used in CI.
-proc-macro-error = [] # This feature is here for backwards-compatibility with the implicit feature from the no longer used `proc-macro-error` dependency.
 
 [package.metadata.docs.rs]
 all-features = true
