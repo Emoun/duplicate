@@ -1,4 +1,8 @@
 use proc_macro::Span;
+#[cfg(feature = "pretty_errors")]
+use proc_macro2::Span as Span2;
+#[cfg(feature = "pretty_errors")]
+use proc_macro2_diagnostics::{Diagnostic, Level};
 
 /// Used to report errors.
 ///
@@ -69,6 +73,8 @@ impl Error
 		self
 	}
 
+	/// Returns the source span of the error
+	/// (or a stub value if the `pretty_errors` feature is disabled).
 	pub fn get_span(&self) -> Span
 	{
 		#[cfg(feature = "pretty_errors")]
@@ -81,8 +87,7 @@ impl Error
 		}
 	}
 
-	/// Returns the source span of the error and a full message including a
-	/// potential hint (if applicable).
+	/// Returns the message of the error.
 	#[cfg(not(feature = "pretty_errors"))]
 	pub fn into_panic_message(self) -> String
 	{
@@ -90,11 +95,10 @@ impl Error
 	}
 
 	#[cfg(feature = "pretty_errors")]
-	pub fn into_diagnostic(self) -> proc_macro2_diagnostics::Diagnostic
+	/// Converts the error into a [`Diagnostic`] ready for emitting.
+	pub fn into_diagnostic(self) -> Diagnostic
 	{
-		use proc_macro2::Span;
-		use proc_macro2_diagnostics::{Diagnostic, Level};
-		let mut diagnostic = Diagnostic::spanned(Span::from(self.span), Level::Error, self.msg);
+		let mut diagnostic = Diagnostic::spanned(Span2::from(self.span), Level::Error, self.msg);
 		if !self.hint.is_empty()
 		{
 			diagnostic = diagnostic.help(self.hint);
