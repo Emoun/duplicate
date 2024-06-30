@@ -22,7 +22,7 @@ proc-macro2 = { version = "1.0.85", optional = true }
 heck = { version = "0.4.0", optional = true }
 
 [dev-dependencies]
-duplicate_macrotest = "1.0.3"
+duplicate_macrotest = "1.0.4"
 doc-comment = "0.3.3"
 serde = "1.0.105, < 1.0.157" # Needed because macrotest's cargo.toml uses 1.0 however fails with < 1.0.105 and >= 1.0.157 (because it uses syn v2)
 regex = "1.6.0"
