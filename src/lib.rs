@@ -720,8 +720,6 @@ use crate::{
 };
 use parse::*;
 use proc_macro::{Delimiter, Group, Ident, Span, TokenStream};
-#[cfg(feature = "pretty_errors")]
-use proc_macro_error::{abort, proc_macro_error};
 use std::{collections::HashMap, iter::empty};
 use substitute::*;
 
@@ -1007,13 +1005,12 @@ use substitute::*;
 /// substitutions groups), must all be defined at the beginning, and aren't
 /// usable in the invocation itself but only in the code being duplicated.
 #[proc_macro_attribute]
-#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 {
 	match duplicate_impl(attr, item)
 	{
 		Ok(result) => result,
-		Err(err) => abort(err),
+		Err(err) => emit_error(err),
 	}
 }
 
@@ -1049,13 +1046,12 @@ pub fn duplicate_item(attr: TokenStream, item: TokenStream) -> TokenStream
 /// The global substitutions (`typ1` and `typ2`) are substituted in both
 /// their occurrences. Global substitutions are `;` separated.
 #[proc_macro_attribute]
-#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn substitute_item(attr: TokenStream, item: TokenStream) -> TokenStream
 {
 	match substitute_impl(attr, item)
 	{
 		Ok(result) => result,
-		Err(err) => abort(err),
+		Err(err) => emit_error(err),
 	}
 }
 
@@ -1134,7 +1130,6 @@ pub fn substitute_item(attr: TokenStream, item: TokenStream) -> TokenStream
 ///
 /// [`duplicate_item`]: attr.duplicate_item.html
 #[proc_macro]
-#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn duplicate(stream: TokenStream) -> TokenStream
 {
 	inline_macro_impl(stream, duplicate_impl)
@@ -1180,7 +1175,6 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 /// The global substitutions (`typ1` and `typ2`) are substituted in both
 /// their occurrences. Global substitutions are `;` separated.
 #[proc_macro]
-#[cfg_attr(feature = "pretty_errors", proc_macro_error)]
 pub fn substitute(stream: TokenStream) -> TokenStream
 {
 	inline_macro_impl(stream, substitute_impl)
@@ -1217,7 +1211,7 @@ fn inline_macro_impl(
 	match result
 	{
 		Ok(result) => result,
-		Err(err) => abort(err),
+		Err(err) => emit_error(err),
 	}
 }
 
@@ -1243,17 +1237,15 @@ fn substitute_impl(attr: TokenStream, item: TokenStream) -> Result<TokenStream>
 ///
 /// The `pretty_errors` feature can be enabled, the span is shown
 /// with the error message.
-#[allow(unused_variables)]
-fn abort(err: Error) -> !
+fn emit_error(err: Error) -> TokenStream
 {
-	let (span, msg) = err.extract();
 	#[cfg(feature = "pretty_errors")]
 	{
-		abort!(span, msg);
+		err.into_diagnostic().emit_as_item_tokens().into()
 	}
 	#[cfg(not(feature = "pretty_errors"))]
 	{
-		panic!("{}", msg);
+		panic!("{}", err.into_panic_message());
 	}
 }
 

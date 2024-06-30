@@ -50,8 +50,7 @@ pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<Subst
 					.unwrap_or(false)
 			{
 				err = err.hint(
-					"Hint: Only global substitutions are allowed. Try 'duplicate' or \
-					 'duplicate_item'.",
+					"Only global substitutions are allowed. Try 'duplicate' or 'duplicate_item'.",
 				);
 			}
 		}
@@ -171,7 +170,7 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 		{
 			let (body, span) = iter.next_group(Some(Delimiter::Bracket)).map_err(|err| {
 				err.hint(
-					"Hint: When using verbose syntax, a substitutions must be enclosed in a \
+					"When using verbose syntax, a substitutions must be enclosed in a \
 					 group.\nExample:\n..\n[\n\tidentifier1 [ substitution1 ]\n\tidentifier2 [ \
 					 substitution2 ]\n]",
 				)
@@ -228,7 +227,7 @@ fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 		// No parameters, get substitution
 		substitution
 			.map(|(sub, _)| Substitution::new_simple(sub.process_all()))
-			.map_err(|old_err| Error::new("Expected '(' or '['.").span(old_err.extract().0))
+			.map_err(|old_err| Error::new("Expected '(' or '['.").span(old_err.get_span()))
 	}
 	.or_else(|err| {
 		stream.push_front(Token::Simple(TokenTree::Ident(ident.clone())));
