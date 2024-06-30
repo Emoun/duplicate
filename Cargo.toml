@@ -2,7 +2,9 @@
 name = "duplicate"
 version = "0.0.0"
 authors = ["Emad Jacob Maroun <emoun.open@gmail.com>"]
-edition = "2018"
+edition = "2021"
+rust-version = "1.65"
+
 license = "MIT OR Apache-2.0"
 description = "Provides macros for duplication of code with variable substitution."
 repository = "https://github.com/Emoun/duplicate"
@@ -19,19 +21,19 @@ proc-macro = true
 [dependencies]
 proc-macro2-diagnostics = { version = "0.10", optional = true }
 proc-macro2 = { version = "1.0.85", optional = true }
-heck = { version = "0.4.0", optional = true }
+heck = { version = "0.5", optional = true }
 
 [dev-dependencies]
-duplicate_macrotest = "1.0.5"
+duplicate_macrotest = "1.0.6"
 doc-comment = "0.3.3"
-serde = "1.0.105, < 1.0.157" # Needed because macrotest's cargo.toml uses 1.0 however fails with < 1.0.105 and >= 1.0.157 (because it uses syn v2)
+serde = "1.0.105" # Needed because macrotest's cargo.toml uses 1.0 however fails with < 1.0.105
 regex = "1.6.0"
 rustversion = "1.0.7"
 
 [features]
 default = ["pretty_errors", "module_disambiguation"]
 pretty_errors = ["dep:proc-macro2-diagnostics", "dep:proc-macro2"]
-module_disambiguation = ["heck"]
+module_disambiguation = ["dep:heck"]
 fail-on-warnings = [] # Forces compilation to fail if any warnings are given. Used in CI.
 
 [package.metadata.docs.rs]

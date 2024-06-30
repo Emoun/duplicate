@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [BREAKING] Increased base MSRV to 1.65.
 - [BREAKING] `duplicate!` and `duplicate_item` no longer allow using exclusively global substitutions.
+- Edition increased to 2021.
+- Replaced `proc-macro-error` dependency with `proc-macro2-diagnostics` for printing nice error messages and hints. See [#61](https://github.com/Emoun/duplicate/issues/61).
+- Updated `heck` dependency to version 0.5.
 
 ## [1.0.0] - 2023-03-10
 
