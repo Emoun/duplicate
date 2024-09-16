@@ -496,8 +496,11 @@
 //! Nested invocations must produce the syntax of their
 //! parent invocation. However, each invocation's private syntax is free
 //! to use any syntax type. Notice in our above example, the nested
-//! invocations use short syntax but produce verbose syntax for the outer-most
+//! invocations use short syntax but produce verbose syntax for the outermost
 //! invocation.
+//!
+//! [`macro@substitute`] is also available when using nested invocation, with
+//! the same behavior.
 //!
 //! ## Global Substitutions
 //!
@@ -528,7 +531,8 @@
 //! }
 //! ```
 //!
-//! Using global substitution, we can avoid repeating the types:
+//! Using the [`macro@substitute_item`] attribute, we can avoid repeating the
+//! types:
 //!
 //! ```
 //! # struct Some<T1,T2>(T1,T2);
@@ -553,15 +557,14 @@
 //! ```
 //!
 //! Here we have defined the two global substitution variables `typ1` and
-//! `typ2`, and used them in the function definition. Global substitutions have
-//! the same syntax as verbose syntax substitution (identifier, optionally
-//! followed by parameters, followed by a substitution.) In our example, no
-//! short or verbose syntax substitution groups are given. While this is not
-//! usually allowed, since we have given at least one global substitution, the
-//! item will simply be kept as is, except with the global substitutions.
+//! `typ2`, and used them in the function definition. [`macro@substitute_item`]
+//! and [`macro@substitute`] have the same syntax as verbose syntax substitution
+//! (identifier, optionally followed by parameters, followed by a substitution.)
+//! and only substitute in-place, with no duplication.
 //!
-//! We can follow global substitutions by substitution groups to achieve
-//! duplication too:
+//! If we want to both do substitution as above (called _global substitution_)
+//! and duplicate, e can follow global substitutions by substitution groups when
+//! using [`duplicate_item`]:
 //!
 //! ```
 //! # struct Some<T1,T2>(T1,T2);
@@ -751,9 +754,9 @@ use substitute::*;
 /// ```
 /// The implementation of `IsMax` is duplicated 3 times:
 ///
-/// 1. For the type `u8` and the its maximum value `255`.
-/// 2. For the type `u16` and the its maximum value `65_535 `.
-/// 3. For the type `u32` and the its maximum value `4_294_967_295 `.
+/// 1. For the type `u8` and its maximum value `255`.
+/// 2. For the type `u16` and its maximum value `65_535 `.
+/// 3. For the type `u32` and its maximum value `4_294_967_295 `.
 ///
 /// This syntax must start with a list of all identifiers followed by `;`.
 /// Then a `;` seperated list of substitution groups must be given (at least 1
@@ -1059,7 +1062,7 @@ pub fn substitute_item(attr: TokenStream, item: TokenStream) -> TokenStream
 /// for different code snippets in each duplicate.
 ///
 /// This is a function-like procedural macro version of [`duplicate_item`].
-/// It's functionality is the exact same, and they share the same invocation
+/// Its functionality is the exact same, and they share the same invocation
 /// syntax(es). The only difference is that `duplicate` doesn't only
 /// duplicate the following item, but duplicate all code given to it after the
 /// invocation block.
@@ -1138,10 +1141,10 @@ pub fn duplicate(stream: TokenStream) -> TokenStream
 /// Substitutes specific identifiers for different code
 /// snippets.
 ///
-/// This is a function-like procedural macro version of [`substitute_item`].
-/// It's functionality is the exact same. The only difference is that
-/// `substitute` doesn't only substitute the following item, but all code given
-/// to it after the invocation block.
+/// This is a function-like procedural macro version of
+/// [`macro@substitute_item`]. Its functionality is the exact same. The only
+/// difference is that `substitute` doesn't only substitute the following item,
+/// but all code given to it after the invocation block.
 ///
 /// ```
 /// # struct Some<T1,T2>(T1,T2);
