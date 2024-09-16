@@ -90,7 +90,6 @@ Only the minimal versions of this crate's direct and transitive dependencies are
 ## Changelog
 
 This project adheres to [Semantic Versioning.](https://semver.org/spec/v2.0.0.html)
-During initial development (with versions 0.y.z), bumps to the minor version (y) signify breaking changes.
 
 [changelog_body]
 
