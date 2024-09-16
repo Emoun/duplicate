@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2024-09-16
+
 ### Added
 
 - `substitute!` and `substitute_item` allow the use of global substitutions without duplication. See [#49](https://github.com/Emoun/duplicate/issues/49).
