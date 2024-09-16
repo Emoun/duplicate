@@ -144,6 +144,10 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 	{
 		if let Some(t) = self.raw_tokens.next()
 		{
+			/// The string identifying a nested `duplicate!` invocation
+			const NESTED_DUPLICATE_NAME: &'static str = "duplicate";
+			/// The string identifying a nested `substitute!` invocation
+			const NESTED_SUBSTITUTE_NAME: &'static str = "substitute";
 			match t
 			{
 				TokenTree::Group(g) =>
@@ -154,7 +158,9 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 						g.span(),
 					))
 				},
-				TokenTree::Ident(id) if id.to_string() == "duplicate" =>
+				TokenTree::Ident(id)
+					if id.to_string() == NESTED_DUPLICATE_NAME
+						|| id.to_string() == NESTED_SUBSTITUTE_NAME =>
 				{
 					if let Some(TokenTree::Punct(p)) = self.raw_tokens.next()
 					{
@@ -175,8 +181,10 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 							{
 								TokenStream::from_iter(self.raw_tokens.next().into_iter())
 							};
-							let stream =
-								invoke_nested(&mut TokenIter::new_like(nested_body, self))?;
+							let stream = invoke_nested(
+								&mut TokenIter::new_like(nested_body, self),
+								id.to_string() == NESTED_DUPLICATE_NAME,
+							)?;
 							self.unconsumed.push_back(Token::Group(
 								Delimiter::None,
 								TokenIter::new_like(stream, self),

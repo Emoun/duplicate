@@ -26,3 +26,9 @@ impl SomeType<i8, u32, u16> for () {}
 impl SomeType<i16, u32, u16> for () {}
 impl SomeType<i8, u64, u16> for () {}
 impl SomeType<i16, u64, u16> for () {}
+struct Example2 {
+    one: u8,
+}
+const SOME_STRUCT1: Example2 = Example2 { one: 0 };
+const SOME_STRUCT2: Example2 = Example2 { one: 1 };
+const SOME_STRUCT3: Example2 = Example2 { one: 2 };

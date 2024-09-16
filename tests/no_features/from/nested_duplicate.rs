@@ -77,3 +77,40 @@ impl SomeType<v3> for (){}
 //item_end
 //item_end
 //item_end
+
+struct Example2{one: u8}
+// Tests nesting substitute! in substitutions
+#[substitute_item(
+	member [
+		substitute!{
+			[
+				mem [one];
+			]
+			mem: 0,
+		}
+	];
+)]//duplicate_end
+const SOME_STRUCT1: Example2 = Example2{member};
+//item_end
+// Tests nesting substitute! in duplicate
+#[duplicate_item(
+	name member;
+	[SOME_STRUCT2] [
+		substitute!{
+			[
+				mem [one];
+			]
+			mem: 1,
+		}
+	];
+	[SOME_STRUCT3] [
+		substitute!{
+			[
+				val [2];
+			]
+			one: val,
+		}
+	];
+)]//duplicate_end
+const name: Example2 = Example2{member};
+//item_end

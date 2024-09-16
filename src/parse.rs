@@ -1,10 +1,12 @@
 use crate::{
+	duplicate_impl,
 	error::Error,
 	pretty_errors::{
 		GLOBAL_SUB_SEMICOLON, NO_GROUPS, NO_GROUPS_HINT, NO_INVOCATION, SHORT_SYNTAX_NO_GROUPS,
 		VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS, VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
 	},
-	substitute::{duplicate_and_substitute, Substitution},
+	substitute::Substitution,
+	substitute_impl,
 	token_iter::{get_ident, is_ident, is_semicolon, SubGroupIter, Token, TokenIter},
 	DuplicationDefinition, Result, SubstitutionGroup,
 };
@@ -440,20 +442,26 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 }
 
 /// Invokes a nested invocation of duplicate, assuming the
-/// next group is the body of call to `duplicate`
+/// next group is the body of call to `duplicate` (`is_duplicate`) or
+/// `substitute`(`!is_duplicate`)
 pub(crate) fn invoke_nested<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
+	is_duplicate: bool,
 ) -> Result<TokenStream>
 {
 	let (mut nested_body_iter, _) = iter.next_group(None)?;
 
 	let (nested_invocation, _) = nested_body_iter.next_group(Some(Delimiter::Bracket))?;
-	let nested_dup_def = parse_duplicate_invocation(nested_invocation.to_token_stream())?;
-
-	duplicate_and_substitute(
+	(if is_duplicate
+	{
+		duplicate_impl
+	}
+	else
+	{
+		substitute_impl
+	})(
+		nested_invocation.to_token_stream(),
 		nested_body_iter.to_token_stream(),
-		&nested_dup_def.global_substitutions,
-		nested_dup_def.duplications.iter(),
 	)
 }
 
