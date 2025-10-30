@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Hints no longer print unusual Unicode characters. This was caused by an issue with the [`proc-macro2-diagnostics`](https://github.com/SergioBenitez/proc-macro2-diagnostics/issues/11) crate.
+
 ## [2.0.0] - 2024-09-16
 
 ### Added

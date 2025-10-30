@@ -19,7 +19,9 @@ exclude = ["rustfmt.toml", ".gitignore", "README.md", "CHANGELOG.md"]
 proc-macro = true
 
 [dependencies]
-proc-macro2-diagnostics = { version = "0.10", optional = true }
+# We have to turn of coloring (remove default features), because it causes the Unicode escape character to be emitted
+# in hints. See: https://github.com/SergioBenitez/proc-macro2-diagnostics/issues/11
+proc-macro2-diagnostics = { version = "0.10", default-features = false, optional = true }
 proc-macro2 = { version = "1.0.85", optional = true }
 heck = { version = "0.5", optional = true }
 
