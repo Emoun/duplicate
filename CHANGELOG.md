@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Documentaion on nested invocations now clarifies that inner calls to `duplicate` are expanded before outer calls.
+
 ### Fixed
 
-- Hints no longer print unusual Unicode characters. This was caused by an issue with the [`proc-macro2-diagnostics`](https://github.com/SergioBenitez/proc-macro2-diagnostics/issues/11) crate.
+- Hints no longer print unusual Unicode characters. This was caused by [an issue with the `proc-macro2-diagnostics`](https://github.com/SergioBenitez/proc-macro2-diagnostics/issues/11) crate.
+- Fixed an issue where nested calls would result in outer calls only using substitutes from the first substitution group in all duplicates.
 
 ## [2.0.0] - 2024-09-16
 

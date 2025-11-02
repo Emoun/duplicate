@@ -58,3 +58,23 @@ impl SomeTrait<member1, member2> for (){}
 )]//duplicate_end
 impl SomeTrait<member1, member2> for (){}
 //item_end
+
+#[duplicate_item(
+	[
+		name		[outer_1]
+		some_int	[1]
+	]
+	[
+		name		[outer_2]
+		some_int	[2]
+	]
+)]//duplicate_end
+fn name()
+{
+	substitute! ( [
+		sub [	some_int	]
+	]
+		sub;
+	)
+}
+//item_end

@@ -15,3 +15,9 @@ impl SomeTrait<i8, i32> for () {}
 impl SomeTrait<i8, i64> for () {}
 impl SomeTrait<i16, i32> for () {}
 impl SomeTrait<i16, i64> for () {}
+fn outer_1() {
+    1;
+}
+fn outer_2() {
+    2;
+}

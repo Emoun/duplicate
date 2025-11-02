@@ -1,6 +1,4 @@
-use crate::{
-	duplicate_and_substitute, error::Error, invoke_nested, new_group, Result, SubstitutionGroup,
-};
+use crate::{error::Error, invoke_nested, new_group, Result, SubstitutionGroup};
 use proc_macro::{token_stream::IntoIter, Delimiter, Ident, Spacing, Span, TokenStream, TokenTree};
 use std::{
 	collections::VecDeque,
@@ -166,23 +164,11 @@ impl<'a, T: SubGroupIter<'a>> TokenIter<'a, T>
 					{
 						if is_punct(&TokenTree::Punct(p.clone()), '!')
 						{
-							// Nested Invocation. First perform any needed duplication/substitutions
-							// from outer invocation, then invoke it.
-							let nested_body = if !self.global_subs.substitutions.is_empty()
-								|| self.sub_groups.clone().count() > 1
-							{
-								duplicate_and_substitute(
-									TokenStream::from_iter(self.raw_tokens.next().into_iter()),
-									self.global_subs,
-									self.sub_groups.clone(),
-								)?
-							}
-							else
-							{
-								TokenStream::from_iter(self.raw_tokens.next().into_iter())
-							};
 							let stream = invoke_nested(
-								&mut TokenIter::new_like(nested_body, self),
+								&mut TokenIter::new_like(
+									TokenStream::from_iter(self.raw_tokens.next().into_iter()),
+									self,
+								),
 								id.to_string() == NESTED_DUPLICATE_NAME,
 							)?;
 							self.unconsumed.push_back(Token::Group(

@@ -320,10 +320,10 @@
 //!
 //! We use `duplicate!{..}` to invoke the macro inside itself.
 //! In our example, we have 2 invocations that each produce 3 substitution
-//! groups, inserting the correct `implementation` for their signed or unsigned
+//! groups, inserting the correct implementation for their signed or unsigned
 //! types. The above nested invocation is equivalent to the previous, non-nested
 //! invocation, and actually expands to it as an intermediate step before
-//! expanding the outer-most invocation.
+//! expanding the outermost invocation.
 //!
 //! Deeper levels of nested invocation are possible and work as expected.
 //! There is no limit on the depth of nesting, however, as might be clear from
@@ -365,6 +365,14 @@
 //! is. Therefore, care must be taken to ensure the surrounding code is correct
 //! after the expansion. E.g. maybe `;` is needed after the invocation, or
 //! commas must be produced by the nested invocation itself as part of a list.
+//!
+//! ### Eager Expansion
+//!
+//! `duplicate!` calls within the body of duplicated code is eagerly expanded.
+//! I.e., inner `duplicate!` calls expand and resolve ahead of outer
+//! calls, regardless of whether the call is in the  duplicated body
+//! or invocation. This is especially important if using the same
+//! substitution identifiers in both outer and inner calls.
 //!
 //! ## Verbose Syntax
 //!
@@ -1317,6 +1325,7 @@ impl SubstitutionGroup
 }
 
 /// Defines how duplication should happen.
+#[derive(Debug)]
 struct DuplicationDefinition
 {
 	pub global_substitutions: SubstitutionGroup,
