@@ -1,4 +1,4 @@
-       = help: Number of substitutions must match the number of substitutions identifiers.
+Number of substitutions must match the number of substitutions identifiers.
        Example:
            ident1 ident2;
           1^^^^^^ ^^^^^^2

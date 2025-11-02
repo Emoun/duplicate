@@ -1,4 +1,4 @@
-       = help: Missing substitution for: 'ty'
+Missing substitution for: 'ty'
        All substitution groups must define the same substitution identifiers.
        Example:
            [

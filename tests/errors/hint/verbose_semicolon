@@ -1,4 +1,4 @@
-       = help: Verbose syntax does not accept semicolons between substitutions.
+Verbose syntax does not accept semicolons between substitutions.
        Example:
            [
                name    [sub1] // No semicolon

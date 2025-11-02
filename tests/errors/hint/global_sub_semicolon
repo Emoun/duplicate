@@ -1,4 +1,4 @@
-       = help: Each global substitution should end with ';'
+Each global substitution should end with ';'
        Example:
            name   [sub1];
            typ    [sub2];

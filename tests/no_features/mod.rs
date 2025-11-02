@@ -4,7 +4,7 @@ fn test_expansions()
 	crate::utils::ExpansionTester::run_default_test_setup("tests/no_features", "testing");
 }
 
-/// Test that using the crate from a edition 2021 crate works, even if
+/// Test that using the crate from an edition 2021 crate works, even if
 /// the use expands to code that only works with edition 2021.
 #[rustversion::since(1.56)]
 #[test]
