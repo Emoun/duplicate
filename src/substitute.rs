@@ -195,6 +195,27 @@ pub(crate) fn duplicate_and_substitute<'a>(
 	let mut result = TokenStream::new();
 	#[allow(unused_variables)]
 	let mod_and_postfix_sub = disambiguate_module(&item, sub_groups.clone())?;
+	#[cfg(feature = "module_disambiguation")]
+	{
+		if let Some((mod_ident, sub_ident)) = &mod_and_postfix_sub
+		{
+			let mut subs = std::collections::HashSet::new();
+			for sub in sub_groups.clone()
+			{
+				if !subs.insert(
+					sub.substitution_of(sub_ident)
+						.unwrap()
+						.apply_simple(Span::call_site())?
+						.to_string(),
+				)
+				{
+					return Err(Error::new("Item cannot be disambiguated")
+						.span(mod_ident.span())
+						.hint(crate::pretty_errors::MOD_DISAMB_NO_UNIQUE_SUB));
+				}
+			}
+		}
+	}
 
 	let sub_groups_clone = sub_groups.clone();
 	let mut duplicate_and_substitute_one = |substitutions: &SubstitutionGroup| -> Result<()> {

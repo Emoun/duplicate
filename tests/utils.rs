@@ -2,7 +2,7 @@ use std::{
 	ffi::OsString,
 	fs::File,
 	io::{BufRead, BufReader, Write},
-	path::Path,
+	path::{Path, PathBuf},
 };
 
 /// Whether the `pretty_errors` feature is enabled.
@@ -351,5 +351,110 @@ impl<'a> ExpansionTester<'a>
 			],
 		);
 		test.execute_tests();
+	}
+}
+
+/// Runs all basic error message tests in the given path.
+///
+/// A folder named 'source' should contain each source code to test for
+/// expansion errors. A folder named 'basic' should contain the expected basic
+/// error message. The two folders must each have a file with the same name for
+/// each test (except the source file must have the '.rs' extension).
+pub fn run_basic_expansion_error_tests(path: &str)
+{
+	let mut tester = ExpansionTester::new_errors(path, "testing_basic");
+
+	// First setup all basic tests
+	tester.add_source_dir(
+		"basic",
+		vec![
+			ExpansionTester::copy_with_prefix_postfix("basic_", ".expanded.rs"),
+			ExpansionTester::copy_with_prefix_postfix("inline_basic_", ".expanded.rs"),
+		],
+	);
+	tester.add_source_dir(
+		"source",
+		vec![ExpansionTester::duplicate_for_inline_with_prefix("basic_")],
+	);
+	tester.execute_tests();
+}
+
+/// Copies the source file with the same name as the current file
+/// into the testing directory in both attribute and inline version (see
+/// duplicate_for_inline)
+#[cfg_attr(not(feature = "pretty_errors"), allow(dead_code))]
+pub fn get_source(prefix: &str) -> Box<dyn '_ + Fn(&Path, &dyn AsRef<Path>)>
+{
+	Box::new(move |file, destination| {
+		let mut source_file_name = std::ffi::OsString::from(file.file_name().unwrap());
+		source_file_name.push(".rs");
+
+		let mut source_file_path = PathBuf::from(file.parent().unwrap().parent().unwrap());
+		source_file_path.push("source");
+		source_file_path.push(source_file_name);
+
+		assert!(
+			source_file_path.exists(),
+			"Missing file: {:?}",
+			source_file_path.as_os_str()
+		);
+
+		ExpansionTester::duplicate_for_inline_with_prefix(prefix)(&source_file_path, destination);
+	})
+}
+
+/// Runs all error message highlights tests in the given path.
+///
+/// A folder named 'source' should contain each source code to test for
+/// expansion errors. A folder named 'highlight' should contain the expected
+/// basic error message. The two folders must each have a file with the same
+/// name for each test (except the source file must have the '.rs' extension).
+///
+/// If the 'pretty_errors' feature is not enabled, does nothing.
+#[cfg_attr(not(feature = "pretty_errors"), allow(unused_variables))]
+pub fn run_error_highlight_tests(path: &str)
+{
+	#[cfg(feature = "pretty_errors")]
+	{
+		let mut tester = ExpansionTester::new_errors(path, "testing_highlight");
+
+		tester.add_source_dir(
+			"highlight",
+			vec![
+				ExpansionTester::copy_with_prefix_postfix("highlight_", ".expanded.rs"),
+				ExpansionTester::copy_with_prefix_postfix("inline_highlight_", ".expanded.rs"),
+				get_source("highlight_"),
+			],
+		);
+
+		tester.execute_tests();
+	}
+}
+
+/// Runs all error message hint tests in the given path.
+///
+/// A folder named 'source' should contain each source code to test for
+/// expansion errors. A folder named 'hint' should contain the expected basic
+/// error message. The two folders must each have a file with the same name for
+/// each test (except the source file must have the '.rs' extension).
+///
+/// If the 'pretty_errors' feature is not enabled, does nothing.
+#[cfg_attr(not(feature = "pretty_errors"), allow(unused_variables))]
+pub fn run_error_hint_tests(path: &str)
+{
+	#[cfg(feature = "pretty_errors")]
+	{
+		let mut tester = ExpansionTester::new_errors(path, "testing_hint");
+
+		tester.add_source_dir(
+			"hint",
+			vec![
+				ExpansionTester::copy_with_prefix_postfix("hint_", ".expanded.rs"),
+				ExpansionTester::copy_with_prefix_postfix("inline_hint_", ".expanded.rs"),
+				get_source("hint_"),
+			],
+		);
+
+		tester.execute_tests();
 	}
 }

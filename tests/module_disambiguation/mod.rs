@@ -1,3 +1,5 @@
+mod errors;
+
 #[test]
 pub fn test_expansions()
 {

@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hints no longer print unusual Unicode characters. This was caused by [an issue with the `proc-macro2-diagnostics`](https://github.com/SergioBenitez/proc-macro2-diagnostics/issues/11) crate.
 - Fixed an issue where nested calls would result in outer calls only using substitutes from the first substitution group in all duplicates.
+- Module disambiguation now produces an error if no substitution identifier is suitable for disambiguating the module name. See [#64](https://github.com/Emoun/duplicate/issues/64)
 
 ## [2.0.0] - 2024-09-16
 

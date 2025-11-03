@@ -64,7 +64,7 @@ Example:
 /// arguments
 pub(crate) const VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS: &'static str = r#"The same substitution identifier must take the same number of argument across all substitution groups.
 Example:
-    [
+[
         ident1(arg1, arg2)  [sub1 arg1 arg2]
                ^^^^^^^^^^
     ]
@@ -88,4 +88,14 @@ pub(crate) const GLOBAL_SUB_SEMICOLON: &'static str = r#"Each global substitutio
 Example:
     name   [sub1];
     typ    [sub2];
+"#;
+
+/// For when module disambiguation cannot find a substitution identifier to use
+/// for disambiguation
+#[cfg_attr(not(feature = "module_disambiguation"), allow(dead_code))]
+pub(crate) const MOD_DISAMB_NO_UNIQUE_SUB: &'static str = r#"There must be a substitution identifier that is substituted by a single and unique identifier for each duplicate.
+Example:
+    invalid               valid;
+    [i32]                 [som_ident];
+    [Some<Complex<Type>>] [som_other_ident];
 "#;

@@ -1,0 +1,5 @@
+There must be a substitution identifier that is substituted by a single and unique identifier for each duplicate.
+       Example:
+           invalid               valid;
+           [i32]                 [som_ident];
+           [Some<Complex<Type>>] [som_other_ident];
