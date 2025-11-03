@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2025-11-03
+
 ### Changed
 
 - Documentaion on nested invocations now clarifies that inner calls to `duplicate` are expanded before outer calls.
