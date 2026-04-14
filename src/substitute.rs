@@ -6,10 +6,35 @@ use crate::{
 };
 use proc_macro::{Delimiter, Ident, Span, TokenStream, TokenTree};
 
+fn respan_stream(stream: TokenStream, span: Span) -> TokenStream {
+	stream
+		.into_iter()
+		.map(|token| respan_token(token, span))
+		.collect::<TokenStream>()
+}
+
+fn respan_token(token: TokenTree, span: Span) -> TokenTree {
+	match token {
+		TokenTree::Group(group) => TokenTree::Group(new_group(
+			group.delimiter(),
+			respan_stream(group.stream(), span),
+			span,
+		)),
+		TokenTree::Ident(ident) => TokenTree::Ident(Ident::new(&ident.to_string(), span)),
+		TokenTree::Punct(mut punct) => {
+			punct.set_span(span);
+			TokenTree::Punct(punct)
+		},
+		TokenTree::Literal(mut literal) => {
+			literal.set_span(span);
+			TokenTree::Literal(literal)
+		},
+	}
+}
+
 /// The types of sub-substitutions composing a single substitution.
 #[derive(Debug)]
-pub enum SubType
-{
+pub enum SubType {
 	/// A simple substitution with the TokenStream
 	Token(TokenStream),
 	/// Substitute with the TokenStream in the argument of given index.
@@ -31,8 +56,7 @@ pub enum SubType
 /// the final TokenStream that should be substituted for the identifier ( +
 /// arguments).
 #[derive(Debug)]
-pub struct Substitution
-{
+pub struct Substitution {
 	/// The number of arguments to the substitution
 	arg_count: usize,
 	/// The substitution. The list is ordered, with the result of an application
@@ -40,11 +64,9 @@ pub struct Substitution
 	sub: Vec<SubType>,
 }
 
-impl Substitution
-{
+impl Substitution {
 	/// Create a new substitution that takes no arguments.
-	pub fn new_simple(substitution: TokenStream) -> Self
-	{
+	pub fn new_simple(substitution: TokenStream) -> Self {
 		Self {
 			arg_count: 0,
 			sub: vec![SubType::Token(substitution)],
@@ -61,8 +83,7 @@ impl Substitution
 	pub(crate) fn new<'a, T: SubGroupIter<'a>>(
 		arguments: &Vec<String>,
 		mut stream: TokenIter<'a, T>,
-	) -> Result<Self>
-	{
+	) -> Result<Self> {
 		let mut substitutions = Vec::new();
 		// Group tokens that aren't substitution identifiers or groups
 		let mut saved_tokens = None;
@@ -70,36 +91,26 @@ impl Substitution
 		let find_argument =
 			|ident: &Ident| arguments.iter().position(|arg| *arg == ident.to_string());
 
-		while let Some(token) = stream.next_fallible()?
-		{
-			match token
-			{
-				Token::Simple(TokenTree::Ident(ident)) if find_argument(&ident).is_some() =>
-				{
-					if let Some(sub_stream) = saved_tokens.take()
-					{
+		while let Some(token) = stream.next_fallible()? {
+			match token {
+				Token::Simple(TokenTree::Ident(ident)) if find_argument(&ident).is_some() => {
+					if let Some(sub_stream) = saved_tokens.take() {
 						substitutions.push(SubType::Token(sub_stream));
 					}
 					substitutions.push(SubType::Argument(find_argument(&ident).unwrap()));
 				},
-				Token::Group(del, iter, _) =>
-				{
-					if let Some(sub_stream) = saved_tokens.take()
-					{
+				Token::Group(del, iter, _) => {
+					if let Some(sub_stream) = saved_tokens.take() {
 						substitutions.push(SubType::Token(sub_stream));
 					}
 					substitutions.push(SubType::Group(del, Substitution::new(arguments, iter)?));
 				},
-				token =>
-				{
-					saved_tokens
-						.get_or_insert_with(|| TokenStream::new())
-						.extend(Some(TokenTree::from(token)).into_iter())
-				},
+				token => saved_tokens
+					.get_or_insert_with(|| TokenStream::new())
+					.extend(Some(TokenTree::from(token)).into_iter()),
 			}
 		}
-		if let Some(sub_stream) = saved_tokens
-		{
+		if let Some(sub_stream) = saved_tokens {
 			substitutions.push(SubType::Token(sub_stream));
 		}
 		let substitution = Self {
@@ -110,8 +121,7 @@ impl Substitution
 	}
 
 	/// Apply the substitution, assuming it takes no arguments.
-	pub fn apply_simple(&self, err_span: Span) -> Result<TokenStream>
-	{
+	pub fn apply_simple(&self, err_span: Span) -> Result<TokenStream> {
 		self.apply(&Vec::new(), err_span)
 	}
 
@@ -119,20 +129,15 @@ impl Substitution
 	///
 	/// The number of arguments must match the exact number accepted by the
 	/// substitution.
-	pub fn apply(&self, arguments: &Vec<TokenStream>, err_span: Span) -> Result<TokenStream>
-	{
-		if arguments.len() == self.arg_count
-		{
+	pub fn apply(&self, arguments: &Vec<TokenStream>, err_span: Span) -> Result<TokenStream> {
+		if arguments.len() == self.arg_count {
 			let mut result = TokenStream::new();
-			for sub in self.sub.iter()
-			{
+			for sub in self.sub.iter() {
 				result.extend(
-					match sub
-					{
-						SubType::Token(stream) => stream.clone(),
+					match sub {
+						SubType::Token(stream) => respan_stream(stream.clone(), err_span),
 						SubType::Argument(idx) => arguments[*idx].clone(),
-						SubType::Group(delimiter, subst) =>
-						{
+						SubType::Group(delimiter, subst) => {
 							TokenStream::from(TokenTree::Group(new_group(
 								delimiter.clone(),
 								subst.apply(arguments, err_span)?,
@@ -144,9 +149,7 @@ impl Substitution
 				)
 			}
 			Ok(result)
-		}
-		else
-		{
+		} else {
 			Err(Error::new(format!(
 				"Expected {} substitution arguments but got {}",
 				self.arg_count,
@@ -159,18 +162,13 @@ impl Substitution
 	#[cfg(feature = "module_disambiguation")]
 	/// If this substitution simply produces an identifier and nothing else,
 	/// then that identifier is returned, otherwise None
-	pub fn substitutes_identifier(&self) -> Option<Ident>
-	{
-		if self.sub.len() == 1
-		{
-			if let SubType::Token(token) = &self.sub[0]
-			{
+	pub fn substitutes_identifier(&self) -> Option<Ident> {
+		if self.sub.len() == 1 {
+			if let SubType::Token(token) = &self.sub[0] {
 				let mut iter = token.clone().into_iter();
-				if let TokenTree::Ident(ident) = iter.next()?
-				{
+				if let TokenTree::Ident(ident) = iter.next()? {
 					// Ensure there are no more tokens, since we only allow 1 identifier.
-					if iter.next().is_none()
-					{
+					if iter.next().is_none() {
 						return Some(ident);
 					}
 				}
@@ -179,8 +177,7 @@ impl Substitution
 		None
 	}
 
-	pub fn argument_count(&self) -> usize
-	{
+	pub fn argument_count(&self) -> usize {
 		self.arg_count
 	}
 }
@@ -190,25 +187,21 @@ pub(crate) fn duplicate_and_substitute<'a>(
 	item: TokenStream,
 	global_subs: &'a SubstitutionGroup,
 	mut sub_groups: impl Iterator<Item = &'a SubstitutionGroup> + Clone,
-) -> Result<TokenStream>
-{
+) -> Result<TokenStream> {
 	let mut result = TokenStream::new();
 	#[allow(unused_variables)]
 	let mod_and_postfix_sub = disambiguate_module(&item, sub_groups.clone())?;
 	#[cfg(feature = "module_disambiguation")]
 	{
-		if let Some((mod_ident, sub_ident)) = &mod_and_postfix_sub
-		{
+		if let Some((mod_ident, sub_ident)) = &mod_and_postfix_sub {
 			let mut subs = std::collections::HashSet::new();
-			for sub in sub_groups.clone()
-			{
+			for sub in sub_groups.clone() {
 				if !subs.insert(
 					sub.substitution_of(sub_ident)
 						.unwrap()
 						.apply_simple(Span::call_site())?
 						.to_string(),
-				)
-				{
+				) {
 					return Err(Error::new("Item cannot be disambiguated")
 						.span(mod_ident.span())
 						.hint(crate::pretty_errors::MOD_DISAMB_NO_UNIQUE_SUB));
@@ -223,12 +216,10 @@ pub(crate) fn duplicate_and_substitute<'a>(
 
 		#[cfg(feature = "module_disambiguation")]
 		let mut substituted_mod = false;
-		loop
-		{
+		loop {
 			#[cfg(feature = "module_disambiguation")]
 			{
-				if !substituted_mod
-				{
+				if !substituted_mod {
 					let stream =
 						try_substitute_mod(&mod_and_postfix_sub, substitutions, &mut item_iter);
 					substituted_mod = !stream.is_empty();
@@ -239,9 +230,7 @@ pub(crate) fn duplicate_and_substitute<'a>(
 			if let Some(stream) = substitute_next_token(&mut item_iter, global_subs, substitutions)?
 			{
 				result.extend(stream);
-			}
-			else
-			{
+			} else {
 				break;
 			}
 		}
@@ -253,8 +242,7 @@ pub(crate) fn duplicate_and_substitute<'a>(
 	let empty_sub = SubstitutionGroup::new();
 	duplicate_and_substitute_one(sub_groups.next().unwrap_or(&empty_sub))?;
 
-	for substitutions in sub_groups
-	{
+	for substitutions in sub_groups {
 		duplicate_and_substitute_one(&substitutions)?;
 	}
 
@@ -267,82 +255,63 @@ fn substitute_next_token<'a, T: SubGroupIter<'a>>(
 	tree: &mut TokenIter<'a, T>,
 	global_subs: &SubstitutionGroup,
 	substitutions: &SubstitutionGroup,
-) -> Result<Option<TokenStream>>
-{
+) -> Result<Option<TokenStream>> {
 	let mut result = None;
-	match tree.next_fallible()?
-	{
-		Some(Token::Simple(TokenTree::Ident(ident))) =>
-		{
+	match tree.next_fallible()? {
+		Some(Token::Simple(TokenTree::Ident(ident))) => {
 			match (
 				substitutions.substitution_of(&ident.to_string()),
 				global_subs.substitution_of(&ident.to_string()),
-			)
-			{
-				(Some(subst), None) | (None, Some(subst)) =>
-				{
-					let stream = if subst.arg_count > 0
-					{
+			) {
+				(Some(subst), None) | (None, Some(subst)) => {
+					let stream = if subst.arg_count > 0 {
 						let (mut group_iter, span) =
 							tree.next_group(Some(Delimiter::Parenthesis))?;
 						let mut args = Vec::new();
-						loop
-						{
-							match group_iter.next_group(Some(Delimiter::Bracket))
-							{
-								Ok((group, _)) =>
-								{
+						loop {
+							match group_iter.next_group(Some(Delimiter::Bracket)) {
+								Ok((group, _)) => {
 									args.push(duplicate_and_substitute(
 										group.to_token_stream(),
 										global_subs,
 										Some(substitutions).into_iter(),
 									)?);
-									if group_iter.has_next()?
-									{
+									if group_iter.has_next()? {
 										group_iter.expect_comma()?;
 									}
 								},
-								Err(err) =>
-								{
-									if group_iter.has_next()?
-									{
+								Err(err) => {
+									if group_iter.has_next()? {
 										return Err(
 											err.hint(crate::pretty_errors::BRACKET_SUB_PARAM)
 										);
-									}
-									else
-									{
+									} else {
 										break;
 									}
 								},
 							}
 						}
 						subst.apply(&args, span)?
-					}
-					else
-					{
+					} else {
 						subst.apply_simple(ident.span())?
 					};
 					result
 						.get_or_insert_with(|| TokenStream::new())
 						.extend(stream.into_iter());
 				},
-				(None, None) =>
-				{
+				(None, None) => {
 					result
 						.get_or_insert_with(|| TokenStream::new())
 						.extend(TokenStream::from(TokenTree::Ident(ident)).into_iter());
 				},
-				_ =>
-				{
+				_ => {
 					return Err(
 						Error::new("Multiple substitutions for identifier").span(ident.span())
 					)
 				},
 			}
 		},
-		Some(Token::Group(del, mut group_iter, span)) =>
-		{
+		Some(Token::Group(del, mut group_iter, span)) => {
 			let mut substituted = TokenStream::new();
 			while let Some(stream) =
 				substitute_next_token(&mut group_iter, global_subs, substitutions)?
@@ -353,12 +322,9 @@ fn substitute_next_token<'a, T: SubGroupIter<'a>>(
 				TokenStream::from(TokenTree::Group(new_group(del, substituted, span))).into_iter(),
 			);
 		},
-		Some(token) =>
-		{
-			result
-				.get_or_insert_with(|| TokenStream::new())
-				.extend(Some(TokenTree::from(token)).into_iter())
-		},
+		Some(token) => result
+			.get_or_insert_with(|| TokenStream::new())
+			.extend(Some(TokenTree::from(token)).into_iter()),
 		_ => (),
 	}
 	Ok(result)

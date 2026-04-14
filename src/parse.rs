@@ -16,29 +16,22 @@ use std::collections::HashSet;
 /// Parses all global substitutions, returning them.
 ///
 /// If there are other tokens than global substitutions, returns an error.
-pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<SubstitutionGroup>
-{
+pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<SubstitutionGroup> {
 	let empty_global = SubstitutionGroup::new();
 	let mut iter = TokenIter::new(attr, &empty_global, std::iter::empty());
 	let global_substitutions = validate_global_substitutions(&mut iter)?;
 
-	if let Ok(None) = iter.peek()
-	{
+	if let Ok(None) = iter.peek() {
 		// Accept global substitutions on their own
-		if global_substitutions.substitutions.is_empty()
-		{
+		if global_substitutions.substitutions.is_empty() {
 			// There are no global substitutions, return error requiring it
 			Err(iter
 				.extract_identifier(Some("a substitution identifier"))
 				.unwrap_err())
-		}
-		else
-		{
+		} else {
 			Ok(global_substitutions)
 		}
-	}
-	else
-	{
+	} else {
 		// There are more tokens, just try to get another substitution and return its
 		// error
 		#[cfg_attr(not(feature = "pretty_errors"), allow(unused_mut))]
@@ -67,52 +60,40 @@ pub(crate) fn parse_global_substitutions_only(attr: TokenStream) -> Result<Subst
 /// substitutions that should be applied to all duplicates but don't on their
 /// own indicate a duplicate. Then comes a list of substitution groups, each of
 /// which indicates on duplicate.
-pub(crate) fn parse_duplicate_invocation(attr: TokenStream) -> Result<DuplicationDefinition>
-{
+pub(crate) fn parse_duplicate_invocation(attr: TokenStream) -> Result<DuplicationDefinition> {
 	let empty_global = SubstitutionGroup::new();
 	let mut iter = TokenIter::new(attr, &empty_global, std::iter::empty());
 	let global_substitutions = validate_global_substitutions(&mut iter)?;
 
-	if let (Ok(None), false) = (iter.peek(), global_substitutions.substitutions.is_empty())
-	{
+	if let (Ok(None), false) = (iter.peek(), global_substitutions.substitutions.is_empty()) {
 		// Do not accept no duplicates
 		Err(Error::new(NO_GROUPS).hint(NO_GROUPS_HINT))
-	}
-	else if let Some(dups) = validate_verbose_invocation(&mut iter)?
-	{
+	} else if let Some(dups) = validate_verbose_invocation(&mut iter)? {
 		Ok(DuplicationDefinition {
 			global_substitutions,
 			duplications: dups,
 		})
-	}
-	else
-	{
+	} else {
 		// Otherwise, try short syntax
 		let substitutions = validate_short_attr(iter)?;
 		let mut reorder = Vec::new();
 
-		for _ in 0..substitutions[0].2.len()
-		{
+		for _ in 0..substitutions[0].2.len() {
 			reorder.push(SubstitutionGroup::new());
 		}
 
-		for (ident, args, subs) in substitutions
-		{
-			for (idx, sub) in subs.into_iter().enumerate()
-			{
+		for (ident, args, subs) in substitutions {
+			for (idx, sub) in subs.into_iter().enumerate() {
 				let substitution = Substitution::new(
 					&args,
 					TokenIter::new(sub, &SubstitutionGroup::new(), std::iter::empty()),
 				);
-				if let Ok(substitution) = substitution
-				{
+				if let Ok(substitution) = substitution {
 					reorder[idx].add_substitution(
 						Ident::new(&ident.clone(), Span::call_site()),
 						substitution,
 					)?;
-				}
-				else
-				{
+				} else {
 					return Err(Error::new(
 						"Duplicate internal error: Failed at creating substitution",
 					));
@@ -137,15 +118,12 @@ pub(crate) fn parse_duplicate_invocation(attr: TokenStream) -> Result<Duplicatio
 /// which starts the same way as a global substitution.
 fn validate_global_substitutions<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
-) -> Result<SubstitutionGroup>
-{
+) -> Result<SubstitutionGroup> {
 	let mut sub_group = SubstitutionGroup::new();
-	while let Ok((ident, sub)) = extract_inline_substitution(iter)
-	{
+	while let Ok((ident, sub)) = extract_inline_substitution(iter) {
 		sub_group.add_substitution(ident, sub)?;
 
-		if iter.has_next()?
-		{
+		if iter.has_next()? {
 			iter.expect_semicolon()
 				.map_err(|err| err.hint(GLOBAL_SUB_SEMICOLON))?;
 		}
@@ -161,15 +139,12 @@ fn validate_global_substitutions<'a, T: SubGroupIter<'a>>(
 /// Returns 'None' if an error occurred before verbose syntax was recognized
 fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
-) -> Result<Option<Vec<SubstitutionGroup>>>
-{
-	if let Ok(Some(Token::Group(Delimiter::Bracket, _, _))) = iter.peek()
-	{
+) -> Result<Option<Vec<SubstitutionGroup>>> {
+	if let Ok(Some(Token::Group(Delimiter::Bracket, _, _))) = iter.peek() {
 		let mut sub_groups = Vec::new();
 
 		let mut substitution_ids = None;
-		while iter.has_next()?
-		{
+		while iter.has_next()? {
 			let (body, span) = iter.next_group(Some(Delimiter::Bracket)).map_err(|err| {
 				err.hint(
 					"When using verbose syntax, a substitutions must be enclosed in a \
@@ -182,8 +157,7 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 				span,
 				&substitution_ids,
 			)?);
-			if None == substitution_ids
-			{
+			if None == substitution_ids {
 				substitution_ids = Some(
 					sub_groups[0]
 						.identifiers_with_args()
@@ -193,9 +167,7 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 			}
 		}
 		Ok(Some(sub_groups))
-	}
-	else
-	{
+	} else {
 		Ok(None)
 	}
 }
@@ -204,14 +176,12 @@ fn validate_verbose_invocation<'a, T: SubGroupIter<'a>>(
 /// an optional parameter list, followed by a substitution.
 fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 	stream: &mut TokenIter<'a, T>,
-) -> Result<(Ident, Substitution)>
-{
+) -> Result<(Ident, Substitution)> {
 	let ident = stream.extract_identifier(Some("a substitution identifier"))?;
 	let param_group = stream.next_group(Some(Delimiter::Parenthesis));
 	let substitution = stream.next_group(Some(Delimiter::Bracket));
 
-	if let Ok((params, span)) = param_group
-	{
+	if let Ok((params, span)) = param_group {
 		// Found parameters, now get substitution
 		substitution
 			.and_then(|(sub, _)| {
@@ -223,9 +193,7 @@ fn extract_inline_substitution<'a, T: SubGroupIter<'a>>(
 				stream.push_front(Token::Group(Delimiter::Parenthesis, params, span));
 				Err(err)
 			})
-	}
-	else
-	{
+	} else {
 		// No parameters, get substitution
 		substitution
 			.map(|(sub, _)| Substitution::new_simple(sub.process_all()))
@@ -243,10 +211,8 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 	mut iter: TokenIter<'a, T>,
 	iter_span: Span,
 	existing: &Option<HashSet<(String, usize)>>,
-) -> Result<SubstitutionGroup>
-{
-	if !iter.has_next()?
-	{
+) -> Result<SubstitutionGroup> {
+	if !iter.has_next()? {
 		return Err(Error::new(NO_GROUPS).span(iter_span));
 	}
 
@@ -261,15 +227,13 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 	let mut substitutions = SubstitutionGroup::new();
 	let mut stream = iter;
 
-	while stream.has_next()?
-	{
+	while stream.has_next()? {
 		#[allow(unused_mut)]
 		let mut hint: Option<&str> = None;
 
 		#[cfg(feature = "pretty_errors")]
 		{
-			if stream.has_next_semicolon()?
-			{
+			if stream.has_next_semicolon()? {
 				hint = Some(crate::pretty_errors::VERBOSE_SEMICOLON);
 			}
 		}
@@ -288,9 +252,7 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 					"Wrong argument count for substitution identifier.",
 					VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS_ARGS,
 				)
-			}
-			else
-			{
+			} else {
 				(
 					"Unexpected substitution identifier.",
 					VERBOSE_SYNTAX_SUBSTITUTION_IDENTIFIERS,
@@ -305,16 +267,14 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 	let found_idents: HashSet<_> = substitutions.identifiers_with_args().collect();
 	let missing: Vec<_> = expected_idents.difference(&found_idents).collect();
 
-	if missing.len() > 0
-	{
+	if missing.len() > 0 {
 		let mut hint = String::new();
 		#[cfg(feature = "pretty_errors")]
 		{
 			hint += "Missing";
 
 			hint += " substitution for:";
-			for ident in missing
-			{
+			for ident in missing {
 				hint += " '";
 				hint += &ident.0.to_string();
 				hint += "'";
@@ -335,8 +295,7 @@ fn extract_verbose_substitutions<'a, T: SubGroupIter<'a>>(
 /// substitution that should be made.
 fn validate_short_attr<'a, T: SubGroupIter<'a>>(
 	mut iter: TokenIter<'a, T>,
-) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>>
-{
+) -> Result<Vec<(String, Vec<String>, Vec<TokenStream>)>> {
 	let idents = validate_short_get_identifiers(&mut iter)?;
 	let mut result: Vec<_> = idents
 		.into_iter()
@@ -344,12 +303,9 @@ fn validate_short_attr<'a, T: SubGroupIter<'a>>(
 		.collect();
 	validate_short_get_all_substitution_goups(iter, &mut result)?;
 
-	if result[0].2.is_empty()
-	{
+	if result[0].2.is_empty() {
 		Err(Error::new(NO_GROUPS).hint(SHORT_SYNTAX_NO_GROUPS))
-	}
-	else
-	{
+	} else {
 		Ok(result)
 	}
 }
@@ -358,24 +314,17 @@ fn validate_short_attr<'a, T: SubGroupIter<'a>>(
 /// identifiers.
 fn validate_short_get_identifiers<'a, T: SubGroupIter<'a>>(
 	mut iter: &mut TokenIter<'a, T>,
-) -> Result<Vec<(String, Vec<String>)>>
-{
+) -> Result<Vec<(String, Vec<String>)>> {
 	let mut result = Vec::new();
 	while let Some(ident) = iter.extract_simple(
 		|t| is_ident(t, None) || (is_semicolon(t) && !result.is_empty()),
 		|t| get_ident(t),
-		Some(
-			if result.is_empty()
-			{
-				NO_INVOCATION
-			}
-			else
-			{
-				"substitution_identifier or ';'"
-			},
-		),
-	)?
-	{
+		Some(if result.is_empty() {
+			NO_INVOCATION
+		} else {
+			"substitution_identifier or ';'"
+		}),
+	)? {
 		result.push((
 			ident.to_string(),
 			validate_short_get_identifier_arguments(&mut iter)?,
@@ -387,10 +336,8 @@ fn validate_short_get_identifiers<'a, T: SubGroupIter<'a>>(
 /// Assuming use of the short syntax, gets the list of identifier arguments.
 fn validate_short_get_identifier_arguments<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
-) -> Result<Vec<String>>
-{
-	if let Ok((group, _)) = iter.next_group(Some(Delimiter::Parenthesis))
-	{
+) -> Result<Vec<String>> {
+	if let Ok((group, _)) = iter.next_group(Some(Delimiter::Parenthesis)) {
 		let result = extract_argument_list(group)?;
 		return Ok(result);
 	}
@@ -402,18 +349,14 @@ fn validate_short_get_identifier_arguments<'a, T: SubGroupIter<'a>>(
 fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 	mut iter: TokenIter<'a, T>,
 	result: &mut Vec<(String, Vec<String>, Vec<TokenStream>)>,
-) -> Result<()>
-{
-	while iter.has_next()?
-	{
-		for (_, _, streams) in result.iter_mut()
-		{
+) -> Result<()> {
+	while iter.has_next()? {
+		for (_, _, streams) in result.iter_mut() {
 			#[allow(unused_mut)]
 			let mut error = crate::pretty_errors::SHORT_SYNTAX_MISSING_SUB_BRACKET;
 			#[cfg(feature = "pretty_errors")]
 			{
-				if iter.has_next_semicolon()?
-				{
+				if iter.has_next_semicolon()? {
 					error = crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT;
 				}
 			}
@@ -424,12 +367,10 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 			streams.push(group.to_token_stream());
 		}
 
-		if iter.has_next()?
-		{
+		if iter.has_next()? {
 			#[cfg(feature = "pretty_errors")]
 			{
-				if let Ok((_, span)) = iter.next_group(Some(Delimiter::Bracket))
-				{
+				if let Ok((_, span)) = iter.next_group(Some(Delimiter::Bracket)) {
 					return Err(Error::new("Unexpected delimiter.")
 						.span(span)
 						.hint(crate::pretty_errors::SHORT_SYNTAX_SUBSTITUTION_COUNT));
@@ -447,17 +388,13 @@ fn validate_short_get_all_substitution_goups<'a, T: SubGroupIter<'a>>(
 pub(crate) fn invoke_nested<'a, T: SubGroupIter<'a>>(
 	iter: &mut TokenIter<'a, T>,
 	is_duplicate: bool,
-) -> Result<TokenStream>
-{
+) -> Result<TokenStream> {
 	let (mut nested_body_iter, _) = iter.next_group(None)?;
 
 	let (nested_invocation, _) = nested_body_iter.next_group(Some(Delimiter::Bracket))?;
-	(if is_duplicate
-	{
+	(if is_duplicate {
 		duplicate_impl
-	}
-	else
-	{
+	} else {
 		substitute_impl
 	})(
 		nested_invocation.to_token_stream(),
@@ -469,17 +406,14 @@ pub(crate) fn invoke_nested<'a, T: SubGroupIter<'a>>(
 /// The list is expected to be of comma-separated identifiers.
 pub(crate) fn extract_argument_list<'a, T: SubGroupIter<'a>>(
 	mut args: TokenIter<'a, T>,
-) -> Result<Vec<String>>
-{
+) -> Result<Vec<String>> {
 	let mut result = Vec::new();
-	while args.has_next()?
-	{
+	while args.has_next()? {
 		let ident =
 			args.extract_identifier(Some("substitution identifier argument as identifier"))?;
 		result.push(ident.to_string());
 
-		if args.has_next()?
-		{
+		if args.has_next()? {
 			args.expect_comma()?;
 		}
 	}
