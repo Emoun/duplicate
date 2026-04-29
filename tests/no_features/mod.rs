@@ -1,3 +1,5 @@
+use rustversion::since;
+use trybuild;
 #[test]
 fn test_expansions()
 {
@@ -43,4 +45,20 @@ fn ensure_no_group_new()
 			path
 		);
 	}
+}
+
+/// Various tests that ensure correct span assignment to the resulting code.
+///
+/// This is usually relevant in case code does not compile for reasons
+/// unconnected to `duplicate`, requiring the compiler produce span highlight
+/// that still make sense.
+///
+/// Rust does not guarantee that error messages do not change, so we only run
+/// these tests on recent rust versions.
+#[since(1.94)]
+#[test]
+fn span_tests()
+{
+	let t = trybuild::TestCases::new();
+	t.compile_fail("tests/no_features/span_tests/*.rs");
 }

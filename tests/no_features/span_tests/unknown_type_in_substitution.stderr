@@ -1,0 +1,10 @@
+error[E0425]: cannot find type `Type` in this scope
+ --> tests/no_features/span_tests/unknown_type_in_substitution.rs:5:6
+  |
+5 |     [Type::<t>];
+  |      ^^^^ not found in this scope
+  |
+help: consider importing this struct
+  |
+3 + use std::mem::type_info::Type;
+  |
