@@ -1,3 +1,5 @@
+use rustversion::since;
+use trybuild2;
 #[test]
 fn test_expansions()
 {
@@ -42,5 +44,40 @@ fn ensure_no_group_new()
 			"Found 'Group::new' in {:?}",
 			path
 		);
+	}
+}
+
+/// Various tests that ensure correct span assignment to the resulting code.
+///
+/// This is usually relevant in case code does not compile for reasons
+/// unconnected to `duplicate`, requiring the compiler produce span highlight
+/// that still make sense.
+///
+/// Rust does not guarantee that error messages do not change, so we only run
+/// these tests on recent rust versions.
+#[since(1.94)]
+#[test]
+fn span_tests()
+{
+	let t = trybuild2::TestCases::new();
+
+	let test_dir = "tests/no_features/span_tests/";
+	for test_file in std::fs::read_dir(test_dir)
+		.unwrap()
+		.filter_map(|e| e.ok())
+		.map(|e| e.path())
+		.filter(|p| p.is_file() && p.extension().map_or(false, |ext| ext == "rs"))
+	{
+		let err_file = test_file.with_extension("stderr");
+
+		if let Ok(true) = std::fs::exists(&err_file)
+		{
+			let expected_err = std::fs::read_to_string(err_file).unwrap();
+			t.compile_fail_check_sub(test_file, expected_err.as_str());
+		}
+		else
+		{
+			panic!("Missing error file: {}", err_file.to_str().unwrap());
+		};
 	}
 }
